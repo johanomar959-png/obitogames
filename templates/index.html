@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Obito Games — Juega Gratis Online</title>
+<link rel="icon" type="image/png" href="/static/logo.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<script>
+tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Orbitron','sans-serif'], body:['Rubik','sans-serif'] } } } };
+</script>
+<style>
+  body{background:#0b0708;font-family:'Rubik',sans-serif;font-weight:500;overflow-x:hidden;color:#e5e7eb;}
+  .bg-glow{position:fixed;inset:0;z-index:-1;background:
+    radial-gradient(700px circle at 15% -10%, rgba(220,38,38,.16), transparent 45%),
+    radial-gradient(900px circle at 85% 0%, rgba(127,29,29,.10), transparent 45%);}
+  .akatsuki{position:fixed;z-index:-1;opacity:.05;pointer-events:none;}
+  .glass{background:rgba(20,10,11,.85);backdrop-filter:blur(14px);}
+  .gradient-text{background:linear-gradient(135deg,#fca5a5,#dc2626);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .no-scrollbar::-webkit-scrollbar{display:none}
+  .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+  #sidebar::-webkit-scrollbar{width:6px}
+  #sidebar::-webkit-scrollbar-thumb{background:#3f1d1d;border-radius:3px}
+  h2{font-weight:800;color:#f9fafb;}
+  .tile-img{transition:transform .3s ease;will-change:transform;}
+  .group:hover .tile-img{transform:scale(1.05);}
+  .side-link{display:flex;align-items:center;gap:.75rem;width:100%;padding:.5rem .75rem;border-radius:.5rem;font-size:.92rem;font-weight:600;color:#d1d5db;transition:all .2s;}
+  .side-link:hover{background:rgba(220,38,38,.08);color:#fff;}
+  .side-link:hover svg{transform:scale(1.12);}
+  .side-link svg{transition:transform .2s ease;flex-shrink:0;}
+  .side-link.active{background:rgba(220,38,38,.16);color:#fca5a5;box-shadow:inset 2px 0 0 #dc2626;}
+  .side-link.disabled{opacity:.4;cursor:not-allowed;}
+  .side-chip{display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:.8rem .5rem;border-radius:.75rem;background:rgba(255,255,255,.05);color:#e5e7eb;font-size:.85rem;font-weight:700;transition:all .2s;}
+  .side-chip:hover{background:rgba(220,38,38,.2);color:#fff;transform:translateY(-2px);}
+  .tool-btn{display:flex;align-items:center;gap:.4rem;padding:.4rem .65rem;border-radius:.5rem;color:#d1d5db;font-size:.85rem;font-weight:700;transition:all .2s;}
+  .tool-btn:hover{background:rgba(220,38,38,.15);color:#fff;}
+  .tool-btn.on{color:#f87171;}
+  #stageWrap{aspect-ratio:16/9;max-height:calc(100vh - 150px);}
+  .stage-portrait #stageWrap{aspect-ratio:3/4;max-height:70vh;}
+  .stage-tall #stageWrap{aspect-ratio:9/14;max-height:78vh;}
+  @keyframes tiltPhone{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(80deg)}}
+  .tilt-anim{animation:tiltPhone 1.8s ease-in-out infinite;}
+  .lazy-row{content-visibility:auto;contain-intrinsic-size:0 15rem;}
+  .row-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:20;width:2.75rem;height:2.75rem;border-radius:9999px;background:rgba(15,8,8,.88);backdrop-filter:blur(8px);border:1px solid rgba(248,113,113,.25);display:flex;align-items:center;justify-content:center;color:#fff;opacity:0;transition:all .2s ease;}
+  .group\/row:hover .row-arrow,.row-arrow:focus-visible{opacity:1;}
+  .row-arrow:hover{background:#dc2626;border-color:#f87171;}
+  @media (hover:none){.row-arrow{opacity:.85;}}
+  .skeleton{background:linear-gradient(90deg,#1a1010 25%,#251414 50%,#1a1010 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;}
+  @keyframes shimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+  .error-state{text-align:center;padding:2rem;color:#d1d5db;}
+  .retry-btn{margin-top:1rem;padding:.5rem 1.5rem;background:#dc2626;border-radius:.5rem;color:#fff;font-weight:700;cursor:pointer;border:none;}
+  .retry-btn:hover{background:#ef4444;}
+  *{-webkit-tap-highlight-color:transparent;}
+  .row-track,#browseGrid{contain:layout style paint;}
+</style>
+</head>
+<body class="text-white min-h-screen">
+<div class="bg-glow"></div>
+<svg class="akatsuki" style="top:8%;left:-60px;width:340px" viewBox="0 0 200 120" fill="#dc2626"><path d="M60 70c-20 0-30-12-22-24 6-9 20-10 28-5 2-14 18-22 32-16 10 4 15 13 14 22 12-4 26 2 28 13 2 12-8 20-22 20H60z"/></svg>
+<svg class="akatsuki" style="bottom:6%;right:-40px;width:300px" viewBox="0 0 200 120" fill="#dc2626"><path d="M60 70c-20 0-30-12-22-24 6-9 20-10 28-5 2-14 18-22 32-16 10 4 15 13 14 22 12-4 26 2 28 13 2 12-8 20-22 20H60z"/></svg>
+
+<header class="fixed top-0 inset-x-0 z-50 glass border-b border-red-900/30 h-14">
+  <div class="flex items-center gap-3 h-full px-4">
+    <button id="menuBtn" class="w-10 h-10 rounded-lg hover:bg-red-900/30 flex items-center justify-center" aria-label="Menú">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <button data-nav="home" class="flex items-center gap-2.5 shrink-0">
+      <img src="/static/logo.png" alt="Obito Games" class="w-9 h-9 rounded-full ring-2 ring-red-600/80 shadow-lg shadow-red-700/50" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥷</text></svg>'">
+      <span class="font-display font-black hidden sm:flex flex-col leading-[0.9] text-left">
+        <span class="text-lg tracking-[0.2em]">OBITO</span>
+        <span class="text-lg tracking-[0.2em] gradient-text">GAMES</span>
+      </span>
+    </button>
+    <div class="flex-1 flex justify-center px-2">
+      <div class="relative w-full max-w-xl">
+        <input id="searchInput" type="text" placeholder="Buscar entre miles de juegos..." class="w-full bg-white/5 border border-red-900/40 rounded-full py-2 pl-5 pr-11 text-sm font-medium focus:outline-none focus:border-red-500 focus:shadow-[0_0_18px_rgba(220,38,38,.35)] transition" autocomplete="off" maxlength="100">
+        <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      </div>
+    </div>
+    <div class="hidden md:flex items-center gap-2 shrink-0">
+      <button class="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-red-900/30 text-sm font-semibold transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Amigos
+      </button>
+      <button class="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-red-900/30 text-sm font-semibold transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>Mis Juegos
+      </button>
+      <button class="px-5 py-2 rounded-full bg-red-600 hover:bg-red-500 text-sm font-bold shadow-lg shadow-red-700/50 transition">Iniciar sesión</button>
+    </div>
+  </div>
+</header>
+
+<div id="sidebarBackdrop" class="fixed inset-0 z-30 bg-black/60 hidden"></div>
+<aside id="sidebar" class="fixed z-40 top-14 bottom-0 left-0 w-60 bg-[#120a0b] border-r border-red-900/30 overflow-y-auto py-4 px-3 space-y-1 -translate-x-full transition-transform duration-300">
+  <div id="mainNav" class="space-y-1"></div>
+  <hr class="border-red-900/30 my-3">
+  <div id="categoryNav" class="space-y-1"></div>
+  <hr class="border-red-900/30 my-3">
+  <button class="side-link" data-disabled="1">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2z"/><path d="M7 7h.01"/></svg>
+    <span>Etiquetas</span>
+  </button>
+</aside>
+
+<main id="mainCol" class="pt-14 transition-all duration-300">
+  <div id="homeView" class="p-6">
+    <div id="homeRows" class="space-y-10"></div>
+    <div id="homeSentinel" class="h-16 flex items-center justify-center text-gray-500 text-sm font-medium">Cargando más juegos…</div>
+  </div>
+
+  <div id="browseView" class="p-6 hidden">
+    <h2 id="browseTitle" class="text-xl font-extrabold mb-5"></h2>
+    <div id="browseGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+    <div id="browseSentinel" class="h-12"></div>
+    <div id="browseEmpty" class="hidden text-center py-24 text-gray-400">
+      <div class="text-6xl mb-4">😢</div>
+      <p class="text-lg font-semibold">No se encontraron juegos</p>
+    </div>
+  </div>
+
+  <div id="gameView" class="p-4 lg:p-6 hidden">
+    <div class="flex flex-col xl:flex-row gap-6">
+      <div class="flex-1 min-w-0">
+        <div id="stageBox" class="relative rounded-t-xl overflow-hidden ring-1 ring-red-900/40 bg-black">
+          <div id="stageWrap" class="w-full relative"></div>
+          <div id="stageOverlay" class="absolute inset-0 z-10 hidden flex-col items-center justify-center gap-3 bg-[#0b0708]/92 bg-cover bg-center text-center p-6">
+            <div id="stageSpinner" class="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+            <p id="stageMsg" class="text-sm font-semibold text-gray-200">Cargando juego…</p>
+            <button id="loadOpen" class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold transition">Abrir en pestaña nueva</button>
+            <div id="stageFail" class="hidden space-y-2 mt-2">
+              <button id="failRetry" class="block mx-auto px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-sm font-bold">Reintentar</button>
+              <button id="failOpen" class="block mx-auto px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold">Abrir en pestaña nueva</button>
+            </div>
+          </div>
+          <div id="rotateHint" class="hidden flex absolute inset-0 z-30 bg-[#0b0708]/95 flex-col items-center justify-center gap-4 text-center p-6">
+            <svg class="w-16 h-16 text-red-500 tilt-anim" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+            <p class="font-extrabold text-lg text-gray-100">Gira tu móvil para jugar</p>
+            <p class="text-sm text-gray-400 font-medium max-w-xs">Este juego se juega en horizontal. Gira el dispositivo para continuar la partida.</p>
+          </div>
+        </div>
+        <div class="glass rounded-b-xl border-t-2 border-red-600/60 px-3 py-2 flex items-center gap-1.5 flex-wrap">
+          <div class="flex items-center gap-2 min-w-0 mr-2">
+            <span id="tbEmoji" class="w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center text-lg shrink-0 overflow-hidden"></span>
+            <span id="tbTitle" class="font-bold truncate"></span>
+          </div>
+          <button id="inviteBtn" class="hidden sm:flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-700/90 hover:bg-emerald-600 text-sm font-bold transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Invita a tus amigos
+          </button>
+          <div class="flex-1"></div>
+          <button id="likeBtn" class="tool-btn" title="Me gusta"></button>
+          <button id="dislikeBtn" class="tool-btn" title="No me gusta"></button>
+          <button id="favBtn" class="tool-btn" title="Guardar en Mis Juegos"></button>
+          <button id="comBtn" class="tool-btn" title="Comentarios"></button>
+          <button id="shareBtn" class="tool-btn" title="Compartir"></button>
+          <button id="soundBtn" class="tool-btn" title="Silenciar / reanudar"></button>
+          <button id="reportBtn" class="tool-btn" title="Reportar"></button>
+          <button id="tabBtn" class="tool-btn" title="Abrir en pestaña nueva"></button>
+          <button id="fsBtn" class="tool-btn" title="Pantalla completa"></button>
+        </div>
+        <div id="stageAd" class="mt-4"></div>
+        <div id="gameInfo"></div>
+        <nav class="text-xs text-gray-400 mt-3 flex items-center gap-1.5 flex-wrap font-medium">
+          <button id="crumbHome" class="hover:text-red-400 transition">Juegos</button> »
+          <button id="crumbCat" class="hover:text-red-400 transition"></button> »
+          <span id="crumbTitle" class="text-gray-200"></span>
+        </nav>
+      </div>
+      <aside class="w-full xl:w-80 shrink-0">
+        <div id="railAd" class="mb-5"></div>
+        <h3 class="font-extrabold mb-3">Jugar a continuación</h3>
+        <div id="nextGames" class="space-y-3"></div>
+        <div id="railSentinel" class="h-8"></div>
+      </aside>
+    </div>
+  </div>
+
+  <footer class="px-6 py-8 border-t border-red-900/30 text-center text-sm text-gray-500 font-medium">© 2026 Obito Games — Hecho con 🖤❤️ y modo sabio activado</footer>
+</main>
+
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] glass px-5 py-2.5 rounded-full text-sm font-semibold opacity-0 transition pointer-events-none"></div>
+
+<script>
+const PERF={DEBOUNCE_SEARCH:250};
+/* ===== CONFIG DE ANUNCIOS: pega aquí tu ID de AdSense cuando lo tengas ===== */
+const ADS={client:"",slots:{stage:"",rail:"",home:"",info:""}};
+const $=s=>document.querySelector(s);
+const state={category:null,search:'',current:null,view:'home'};
+let CATS=[],CUR=[],lastRoute=null,sidebarOpen=false;
+const seenGames=new Map();
+let homeOffset=0,homeTotal=0,homeLoading=false,homeDone=false;
+let browseOffset=0,browseTotal=0,browseLoading=false,browseParams={};
+let railQueue=[],railShown=0,railCounter=0;
+const CHUNK=50, HOME_BATCH=100, BROWSE_CHUNK=40, MAX_ROWS=30, RAIL_SIZE=40;
+let stageState={sources:[],idx:0,alts:[],timer:null,tick:null,currentUrl:null};
+let soundOn=true, dbRowsCreated=0, bandsQueue=[];
+
+const ROW_NAMES=['Joyas ocultas de la comunidad','Recién llegados al arcade','Para maratonear esta noche','Reto aceptado: supera tu récord','Modo relajado: juega sin prisa','Velocidad máxima y reflejos','Píxeles, nostalgia y gloria','Caos divertido garantizado','Épicos, gigantes y legendarios','Secretos mejor guardados','Fiebre de fin de semana','Nivel experto: entra si puedes'];
+
+const BANDS=[
+  {key:'A',emoji:'🃏',title:'Clásicos atemporales',sub:'Nostalgia pura que nunca pasa de moda',grad:'from-purple-950/70 via-[#170b1d] to-[#120714]',cat:'arcade'},
+  {key:'B',emoji:'💎',title:'Combina y fusiona',sub:'Fácil de empezar, difícil de dejar',grad:'from-emerald-950/70 via-[#0b1a12] to-[#07140c]',cat:'puzzle'},
+  {key:'C',emoji:'🌌',title:'Inmersión profunda',sub:'Mundos que querrás dominar',grad:'from-sky-950/70 via-[#0b141a] to-[#071014]',cat:'simulacion'},
+  {key:'D',emoji:'⚡',title:'Adrenalina pura',sub:'Velocidad, reflejos y gloria',grad:'from-red-950/70 via-[#1a0b0b] to-[#140707]',cat:'accion'},
+];
+
+const VirtualScroller={
+  rows:[],visibleRange:[0,0],
+  addRow(d,e,cls){const id=this.rows.length;this.rows.push({id,data:d,element:e,tileCls:cls||'w-64 h-40 shrink-0',visible:false,filled:false});return id;},
+  updateVisibility(){const st=window.scrollY,vh=window.innerHeight,b=vh*.5;let s=-1,e=-1;
+    for(let i=0;i<this.rows.length;i++){const r=this.rows[i];if(!r.element)continue;
+      const rect=r.element.getBoundingClientRect(),top=rect.top+st,bot=top+rect.height;
+      const inV=bot>st-b&&top<st+vh+b;
+      if(inV){if(s===-1)s=i;e=i;if(!r.visible){r.element.style.contentVisibility='visible';r.visible=true;}}
+      else if(r.visible){r.element.style.contentVisibility='auto';r.visible=false;}}
+    this.visibleRange=[s,e];},
+  fillVisibleRows(){const[s,e]=this.visibleRange;if(s===-1)return;for(let i=s;i<=e;i++){const r=this.rows[i];if(!r.filled&&r.data&&r.element)this.fillRow(r);}},
+  fillRow(r){if(r.filled)return;r.filled=true;const t=r.element.querySelector('.row-track');if(!t)return;t.innerHTML=r.data.map(g=>tileHTML(g,r.tileCls)).join('');t.dataset.filled='1';},
+  reset(){this.rows=[];this.visibleRange=[0,0];}
+};
+
+const CacheLayer={memory:new Map(),ttl:300000,
+  get(k){const i=this.memory.get(k);if(!i)return null;if(Date.now()-i.ts>this.ttl){this.memory.delete(k);return null;}return i.data;},
+  set(k,d){if(this.memory.size>=50){const f=this.memory.keys().next().value;this.memory.delete(f);}this.memory.set(k,{data:d,ts:Date.now()});}};
+
+const API={async fetch(p,params={},o={}){
+  const key=p+'?'+new URLSearchParams(params).toString();
+  if(!o.skipCache){const c=CacheLayer.get(key);if(c)return c;}
+  const qs=new URLSearchParams(params).toString();
+  const res=await fetch(qs?p+'?'+qs:p,{headers:{'Accept':'application/json'}});
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  const d=await res.json();
+  if(!o.skipCache)CacheLayer.set(key,d);
+  return d;}};
+
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}};
+let likesMap=store.get('obito_likes',{}),favsMap=store.get('obito_favs',{});
+
+const ICONS={home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',sparkles:'<path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/>',flame:'<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',refresh:'<path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/>',gem:'<path d="M6 3h12l4 6-10 13L2 9z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/>',users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',trophy:'<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/>',swords:'<path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="M5 14l4 4"/><path d="M7 17l-3 3"/><path d="M3 19l2 2"/>',gamepad:'<path d="M6 12h4"/><path d="M8 10v4"/><path d="M15 13h.01"/><path d="M18 11h.01"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/>',compass:'<circle cx="12" cy="12" r="10"/><path d="M16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88z"/>',cards:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',click:'<path d="M9 9l5 12 1.8-5.2L21 14z"/><path d="M7.2 2.2 8 5.1"/><path d="M5.1 8 2.2 7.2"/><path d="M14 4.1 12 6"/><path d="M6 12l-1.9 2"/>',car:'<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/>',crosshair:'<circle cx="12" cy="12" r="10"/><path d="M22 12h-4"/><path d="M6 12H2"/><path d="M12 6V2"/><path d="M12 22v-4"/>',rook:'<path d="M6 21h12"/><path d="M8 21v-9h8v9"/><path d="M5 12h14"/><path d="M7 4v4"/><path d="M12 4v4"/><path d="M17 4v4"/><path d="M6 8h12"/>',globe:'<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',dice:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h.01"/><path d="M16 8h.01"/><path d="M8 16h.01"/><path d="M16 16h.01"/><path d="M12 12h.01"/>',type:'<path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>',puzzle:'<path d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.968-.925a2.501 2.501 0 1 0-3.213 3.213c.446.166.855.497.925.968a.979.979 0 0 1-.276.837l-1.61 1.61a2.404 2.404 0 0 1-1.705.707 2.402 2.402 0 0 1-1.704-.706l-1.568-1.568a1.026 1.026 0 0 0-.877-.29c-.493.074-.84.504-1.02.968a2.5 2.5 0 1 1-3.237-3.237c.464-.18.894-.527.967-1.02a1.026 1.026 0 0 0-.289-.877l-1.568-1.568A2.402 2.402 0 0 1 1.998 12c0-.617.236-1.234.706-1.704L4.23 8.77c.24-.24.581-.353.917-.303.515.077.877.528 1.073 1.01a2.5 2.5 0 1 0 3.259-3.259c-.482-.196-.933-.558-1.01-1.073-.05-.336.062-.676.303-.917l1.525-1.525A2.402 2.402 0 0 1 12 1.998c.617 0 1.234.236 1.704.706l1.568 1.568c.23.23.556.338.877.29.493-.074.84-.504 1.02-.968a2.5 2.5 0 1 1 3.237 3.237c-.464.18-.894.527-.967 1.02z"/>',building:'<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>',help:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',chevL:'<path d="M15 18l-6-6 6-6"/>',chevR:'<path d="M9 18l6-6-6-6"/>',thumbup:'<path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88z"/>',thumbdown:'<path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88z"/>',bookmark:'<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>',flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',external:'<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/>',maximize:'<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',comment:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',share:'<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/>',volume:'<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>',volumeX:'<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M23 9l-6 6"/><path d="M17 9l6 6"/>'};
+
+const Security={
+  escapeHtml(t){if(!t)return '';const d=document.createElement('div');d.textContent=t;return d.innerHTML;},
+  sanitizeUrl(u){if(!u)return null;try{const p=new URL(u,location.origin);if(!['http:','https:'].includes(p.protocol))return null;return p.href;}catch{return null;}},
+  validateGameId(id){const v=String(id??'').trim();return /^[A-Za-z0-9_-]{1,128}$/.test(v)?v:null;}
+};
+
+function icon(n,c='w-5 h-5',f=false){return `<svg class="${c}" viewBox="0 0 24 24" fill="${f?'currentColor':'none'}" stroke="${f?'none':'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]||''}</svg>`;}
+function logoURL(g){if(!g||!g.logo)return null;const s=Security.sanitizeUrl(g.logo);if(!s)return null;if(s.includes('s2/favicons'))return null;if(s.startsWith('/')||s.startsWith('http'))return s;return null;}
+
+const MAIN_NAV=[{id:'home',icon:'home',label:'Inicio'},{id:'recientes',icon:'clock',label:'Recientes',disabled:true},{id:'new',icon:'sparkles',label:'Nuevos',section:'new'},{id:'moda',icon:'flame',label:'De moda',section:'popular'},{id:'act',icon:'refresh',label:'Actualizados',disabled:true},{id:'orig',icon:'gem',label:'Originales',disabled:true},{id:'multi',icon:'users',label:'Multijugador',disabled:true},{id:'rank',icon:'trophy',label:'Tablas de clasificación',disabled:true}];
+
+async function api(p,params={},o={}){return API.fetch(p,params,o);}
+function fmt(n){if(n>=1e6)return (n/1e6).toFixed(1).replace('.0','')+' M';if(n>=1e3)return (n/1e3).toFixed(1).replace('.0','')+' k';return String(n);}
+let toastTimer=null;
+function toast(m){const t=$('#toast');t.textContent=m;t.style.opacity='1';if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.style.opacity='0';},2500);}
+
+/* ===== ANUNCIOS: AdSense real si hay client; placeholder mientras tanto ===== */
+function adBanner(compact){
+  if(ADS.client){
+    const slot=ADS.slots[compact?'info':'home']||"";
+    return `<ins class="adsbygoogle" style="display:block" data-ad-client="${ADS.client}" ${slot?`data-ad-slot="${slot}"`:''} data-ad-format="${compact?'rectangle':'auto'}" data-full-width-responsive="true"></ins>`;
+  }
+  return `<section class="relative rounded-2xl overflow-hidden ring-1 ring-red-900/40 bg-gradient-to-r from-[#1a0b0d] via-[#2a0f12] to-[#1a0b0d] ${compact?'p-3':'p-4'} flex items-center gap-4">
+  <span class="absolute top-2 left-2 text-[10px] font-bold text-gray-400 bg-black/40 px-1.5 py-0.5 rounded">AD</span>
+  <div class="${compact?'w-16 h-11':'w-24 h-16'} rounded-lg bg-gradient-to-br from-red-600 to-red-950 flex items-center justify-center ${compact?'text-xl':'text-3xl'} shrink-0">📢</div>
+  <div class="flex-1 min-w-0"><p class="font-extrabold text-gray-100 truncate">Tu anuncio aquí — Obito Games Network</p><p class="text-xs text-gray-400 truncate font-medium">Espacio publicitario premium · miles de jugadores diarios</p></div>
+  <button class="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-xs font-bold shrink-0">Anunciarse</button></section>`;
+}
+function refreshAds(root){
+  if(!ADS.client)return;
+  (root||document).querySelectorAll('ins.adsbygoogle').forEach(el=>{
+    if(el.dataset.pushed)return;el.dataset.pushed="1";
+    try{(window.adsbygoogle=window.adsbygoogle||[]).push({});}catch(e){}
+  });
+}
+function loadAdScript(){
+  if(!ADS.client||document.getElementById('adsjs'))return;
+  const s=document.createElement('script');s.id='adsjs';s.async=true;
+  s.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
+  s.crossOrigin='anonymous';document.head.appendChild(s);
+}
+
+const IMG_FAIL=`onerror="var t=this.closest('[data-play]');if(t)t.remove();"`;
+
+function tileHTML(g,cls=''){
+  const t=Security.escapeHtml(g.title),logo=logoURL(g),gr=Security.escapeHtml(g.gradient);
+  if(!logo)return '';
+  const pl=g.active_players?g.active_players.toLocaleString('es'):'0';
+  const warm=g.embed_url?` data-warm="${g.embed_url}"`:'';
+  return `<a href="#" data-play="${g.id}"${warm} class="group relative block overflow-hidden rounded-xl ring-1 ring-red-900/30 hover:ring-red-500/70 hover:shadow-lg hover:shadow-red-800/30 transition ${cls}">
+    <div class="absolute inset-0 bg-gradient-to-br ${gr}"></div>
+    <img src="${logo}" alt="${t}" loading="lazy" decoding="async" class="tile-img absolute inset-0 w-full h-full object-cover" ${IMG_FAIL}>
+    <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent"></div>
+    <div class="absolute bottom-0 inset-x-0 p-3 flex items-end justify-between gap-2">
+      <span class="font-bold text-sm leading-tight drop-shadow text-gray-50">${t}</span>
+      <span class="text-[11px] text-green-300 flex items-center gap-1 whitespace-nowrap font-semibold"><span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>${pl}</span>
+    </div></a>`;
+}
+
+function miniTile(g){
+  const t=Security.escapeHtml(g.title),logo=logoURL(g),gr=Security.escapeHtml(g.gradient);
+  if(!logo)return '';
+  return `<a href="#" data-play="${g.id}" class="group relative w-24 h-24 shrink-0 rounded-lg overflow-hidden ring-1 ring-red-900/40 hover:ring-red-500/70 transition">
+    <div class="absolute inset-0 bg-gradient-to-br ${gr}"></div>
+    <img src="${logo}" alt="${t}" loading="lazy" decoding="async" class="absolute inset-0 w-full h-full object-cover" ${IMG_FAIL}>
+    <span class="absolute inset-x-0 bottom-0 text-[10px] font-bold truncate px-1 py-0.5 bg-black/70 text-gray-100">${t}</span></a>`;
+}
+
+function nextTile(g,cls=''){
+  const t=Security.escapeHtml(g.title),logo=logoURL(g),gr=Security.escapeHtml(g.gradient);
+  if(!logo)return '';
+  const warm=g.embed_url?` data-warm="${g.embed_url}"`:'';
+  return `<button data-play="${g.id}"${warm} class="group relative block ${cls||'w-full aspect-video'} rounded-xl overflow-hidden ring-1 ring-red-900/30 hover:ring-red-500/60 transition text-left">
+    <div class="absolute inset-0 bg-gradient-to-br ${gr}"></div>
+    <img src="${logo}" alt="${t}" loading="lazy" decoding="async" class="tile-img absolute inset-0 w-full h-full object-cover" ${IMG_FAIL}>
+    <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+    <span class="absolute bottom-2 left-3 text-sm font-bold drop-shadow text-gray-50">${t}</span></button>`;
+}
+
+function skeletonTiles(n,cls='w-64 h-40'){return Array.from({length:n},()=>`<div class="${cls} shrink-0 rounded-xl skeleton"></div>`).join('');}
+
+function rowShell(title,inner,iconSvg='',rowIdx=null){
+  const lazy=rowIdx!==null;
+  return `<section class="relative group/row ${lazy?'lazy-row':''}" ${lazy?`data-row="${rowIdx}"`:''}>
+    <div class="flex items-center gap-2 mb-3">${iconSvg?`<span class="text-red-400">${iconSvg}</span>`:''}<h2 class="text-xl font-extrabold">${Security.escapeHtml(title)}</h2></div>
+    <div class="relative">
+      <button class="row-arrow left-1" data-dir="-1" aria-label="Anterior">${icon('chevL','w-6 h-6')}</button>
+      <div class="row-track flex gap-3 overflow-x-auto no-scrollbar pb-1">${inner||skeletonTiles(10)}</div>
+      <button class="row-arrow right-1" data-dir="1" aria-label="Siguiente">${icon('chevR','w-6 h-6')}</button>
+    </div></section>`;
+}
+
+function bandShell(b,inner,rowIdx){
+  return `<section class="relative group/row lazy-row rounded-2xl p-5 bg-gradient-to-r ${b.grad} ring-1 ring-white/5" data-row="${rowIdx}">
+    <div class="flex items-center gap-3 mb-4"><span class="text-3xl">${b.emoji}</span>
+      <div><h2 class="text-xl font-extrabold text-white">${Security.escapeHtml(b.title)}</h2>
+      <p class="text-sm text-gray-300 font-medium">${Security.escapeHtml(b.sub)}</p></div></div>
+    <div class="relative">
+      <button class="row-arrow left-1" data-dir="-1" aria-label="Anterior">${icon('chevL','w-6 h-6')}</button>
+      <div class="row-track flex gap-3 overflow-x-auto no-scrollbar pb-1">${inner||skeletonTiles(8,'w-72 h-40')}</div>
+      <button class="row-arrow right-1" data-dir="1" aria-label="Siguiente">${icon('chevR','w-6 h-6')}</button>
+    </div></section>`;
+}
+
+function mosaicSection(games){
+  const spans=['col-span-2 row-span-2','','','','','col-span-2','',''];
+  const tiles=games.slice(0,8).map((g,i)=>tileHTML(g,spans[i]||'')).join('');
+  if(!tiles)return '';
+  return `<section>
+    <div class="flex items-center gap-2 mb-3"><span class="text-red-400">${icon('flame','w-5 h-5')}</span><h2 class="text-xl font-extrabold">Lo mejor de todo tu catálogo</h2></div>
+    <div class="grid grid-cols-2 md:grid-cols-4 auto-rows-[130px] md:auto-rows-[150px] gap-3">${tiles}</div>
+  </section>`;
+}
+
+function chipsHTML(){
+  return `<section class="rounded-2xl ring-1 ring-red-900/30 bg-[#160c0d] p-5 flex flex-col md:flex-row gap-5">
+    <div class="md:w-72 shrink-0">
+      <h2 class="text-xl font-extrabold">Juegos Gratis en Línea en Obito Games</h2>
+      <p class="text-sm text-gray-400 font-medium mt-2">Miles de juegos sin descargas ni esperas. Elige una categoría y entra al instante.</p>
+    </div>
+    <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 flex-1">
+      ${CATS.map(c=>`<button class="side-chip" data-category="${Security.escapeHtml(c.slug)}" data-label="${Security.escapeHtml(c.name)}" data-icon="${Security.escapeHtml(c.icon)}">${icon(c.icon,'w-5 h-5')}<span>${Security.escapeHtml(c.name)}</span><span class="text-[10px] text-gray-500 font-semibold">${(c.count||0).toLocaleString('es')}</span></button>`).join('')}
+    </div></section>`;
+}
+
+function controlsFor(cat){
+  switch(cat){
+    case 'conducir': return ['Flechas o WASD para conducir y derrapar','Espacio = freno de mano o nitro según el juego','R para reiniciar la carrera'];
+    case 'disparos': return ['WASD para moverte y el mouse para apuntar','Clic izquierdo = disparar, R = recargar','Espacio = saltar, Shift = correr'];
+    case 'io': return ['Mouse o joystick para dirigirte','Clic o espacio para usar tu habilidad','Crece, domina y evita chocar contra rivales'];
+    case 'puzzle': return ['Mouse o flechas para mover las piezas','Planifica antes de mover: cada movimiento cuenta','Reinicia el nivel si te bloqueas'];
+    case 'deportes': return ['Flechas o WASD para mover a tu jugador','Espacio o clic para pasar, lanzar o patear','Shift para sprint o movimiento especial'];
+    default: return ['Flechas o WASD para moverte','Espacio o clic para la acción principal','P para pausa y pantalla completa para máxima inmersión'];
+  }
+}
+
+function gameInfoHTML(g){
+  const cat=CATS.find(c=>c.slug===g.category);
+  const catName=cat?cat.name:g.category;
+  const chips=[catName,(g.tag&&g.tag!=='clasicos')?(g.tag==='io'?'.io':g.tag):'Clásico','HTML5','Gratis','Sin descargas','1 jugador o más'];
+  const ctrls=controlsFor(g.category);
+  return `
+  <div class="mt-4">${adBanner()}</div>
+  <section class="mt-6 rounded-2xl ring-1 ring-red-900/30 bg-[#160c0d] p-5">
+    <h2 class="text-lg font-extrabold mb-2">Sobre ${Security.escapeHtml(g.title)}</h2>
+    <p class="text-sm text-gray-300 font-medium leading-relaxed">${Security.escapeHtml(g.desc||'Un juego destacado de nuestro catálogo, listo para jugar al instante en tu navegador.')}</p>
+    <p class="text-sm text-gray-400 font-medium leading-relaxed mt-2">En Obito Games puedes jugar ${Security.escapeHtml(g.title)} gratis, sin descargas y directamente en el navegador, en PC, móvil o tablet. Cada partida es una oportunidad para superar tu marca anterior y subir en tu propio ranking personal.</p>
+    <div class="mt-4">${adBanner(true)}</div>
+    <h3 class="text-base font-extrabold mt-5 mb-2">Cómo jugar a ${Security.escapeHtml(g.title)}</h3>
+    <ul class="list-disc list-inside space-y-1 text-sm text-gray-400 font-medium">${ctrls.map(c=>`<li>${Security.escapeHtml(c)}</li>`).join('')}</ul>
+    <h3 class="text-base font-extrabold mt-5 mb-2">Características</h3>
+    <ul class="list-disc list-inside space-y-1 text-sm text-gray-400 font-medium">
+      <li>Carga instantánea en tu navegador, sin instalaciones</li>
+      <li>Compatible con teclado, mouse y controles táctiles</li>
+      <li>Optimizado para pantallas grandes y móviles</li>
+      <li>Integrado con tu perfil de Obito Games (likes y favoritos)</li>
+    </ul>
+    <div class="flex flex-wrap gap-2 mt-5">${chips.map(c=>`<span class="px-3 py-1 rounded-full bg-white/5 text-xs font-bold text-gray-200">${Security.escapeHtml(c)}</span>`).join('')}</div>
+  </section>
+  <div class="mt-4">${adBanner()}</div>`;
+}
+
+let scrollTicking=false;
+function onScroll(){if(!scrollTicking){requestAnimationFrame(()=>{VirtualScroller.updateVisibility();VirtualScroller.fillVisibleRows();scrollTicking=false;});scrollTicking=true;}}
+
+function pushRow(frag,title,games,opts={}){
+  const idx=opts.immediate?null:VirtualScroller.rows.length;
+  const temp=document.createElement('div');
+  temp.innerHTML=rowShell(title,opts.immediate?games.map(g=>tileHTML(g,opts.tileCls||'w-64 h-40 shrink-0')).join(''):'',opts.icon||'',idx);
+  const el=temp.firstElementChild;
+  if(!opts.immediate)VirtualScroller.addRow(games,el,opts.tileCls);
+  frag.appendChild(el);
+}
+
+function pushBand(frag,b,games){
+  const idx=VirtualScroller.rows.length;
+  const temp=document.createElement('div');
+  temp.innerHTML=bandShell(b,'',idx);
+  const el=temp.firstElementChild;
+  VirtualScroller.addRow(games,el,'w-72 h-40 shrink-0');
+  frag.appendChild(el);
+}
+
+function addDbGames(games,frag){
+  for(let i=0;i<games.length;i+=CHUNK){
+    if(VirtualScroller.rows.length>=MAX_ROWS){homeDone=true;return;}
+    const slice=games.slice(i,i+CHUNK);
+    const name=dbRowsCreated===0?'🔥 Los más jugados de tu catálogo':ROW_NAMES[(dbRowsCreated-1)%ROW_NAMES.length];
+    dbRowsCreated++;
+    pushRow(frag,name,slice,{});
+    if(dbRowsCreated===3){const c=document.createElement('div');c.innerHTML=chipsHTML();frag.appendChild(c.firstElementChild);}
+    const bandAt={6:'B',14:'C',22:'D'}[dbRowsCreated];
+    if(bandAt){
+      const b=bandsQueue.find(x=>x.key===bandAt);
+      if(b&&b.games&&b.games.length>=4){pushBand(frag,b,b.games);}
+      const ad=document.createElement('div');ad.innerHTML=adBanner();frag.appendChild(ad.firstElementChild);
+    }
+    if(dbRowsCreated===10){const ad=document.createElement('div');ad.innerHTML=adBanner();frag.appendChild(ad.firstElementChild);}
+  }
+}
+
+async function fetchHomeBatch(){
+  if(homeLoading||homeDone)return;
+  if(VirtualScroller.rows.length>=MAX_ROWS){homeDone=true;$('#homeSentinel').textContent='🏁 Eso es todo por ahora — explora categorías con el menú ☰';return;}
+  homeLoading=true;
+  const sentinel=$('#homeSentinel');
+  sentinel.textContent='Cargando más juegos…';
+  try{
+    const d=await api('/api/games',{limit:HOME_BATCH,offset:homeOffset});
+    homeTotal=d.total||0;
+    const games=d.games||[];
+    if(!games.length){homeDone=true;sentinel.textContent='🏁 Has llegado al final: '+homeTotal.toLocaleString('es')+' juegos en total';}
+    else{
+      const frag=document.createDocumentFragment();
+      addDbGames(games,frag);
+      $('#homeRows').appendChild(frag);
+      refreshAds($('#homeRows'));
+      homeOffset+=games.length;
+      if(homeOffset>=homeTotal){homeDone=true;sentinel.textContent='🏁 Has llegado al final: '+homeTotal.toLocaleString('es')+' juegos en total';}
+      else if(VirtualScroller.rows.length>=MAX_ROWS){homeDone=true;sentinel.textContent='🏁 Eso es todo por ahora — explora categorías con el menú ☰';}
+      VirtualScroller.updateVisibility();VirtualScroller.fillVisibleRows();
+    }
+  }catch(err){
+    console.error(err);
+    sentinel.innerHTML=`<span class="text-red-400 font-semibold">Error al cargar. <button onclick="fetchHomeBatch()" class="underline">Reintentar</button></span>`;
+  }finally{homeLoading=false;}
+}
+
+async function loadHome(btn){
+  state.category=null;state.search='';
+  showView('home');
+  homeOffset=0;homeTotal=0;homeDone=false;dbRowsCreated=0;
+  VirtualScroller.reset();
+  $('#homeSentinel').textContent='Cargando más juegos…';
+
+  const safe=pr=>pr.catch(()=>({games:[]}));
+  const [batch0,bA,bB,bC,bD]=await Promise.all([
+    safe(api('/api/games',{limit:HOME_BATCH,offset:0})),
+    safe(api('/api/games',{category:'arcade',limit:12})),
+    safe(api('/api/games',{category:'puzzle',limit:12})),
+    safe(api('/api/games',{category:'simulacion',limit:12})),
+    safe(api('/api/games',{category:'accion',limit:12}))
+  ]);
+  bandsQueue=[
+    Object.assign({},BANDS[0],{games:bA.games||[]}),
+    Object.assign({},BANDS[1],{games:bB.games||[]}),
+    Object.assign({},BANDS[2],{games:bC.games||[]}),
+    Object.assign({},BANDS[3],{games:bD.games||[]})
+  ];
+
+  const all0=batch0.games||[];
+  const frag=document.createDocumentFragment();
+  const rec=(store.get('obito_recent_games',[])||[]).filter(g=>g&&g.logo&&!String(g.logo).includes('s2/favicons'));
+  if(rec.length){
+    const temp=document.createElement('div');
+    temp.innerHTML=rowShell('Seguir jugando',rec.map(g=>miniTile(g)).join(''),icon('clock','w-5 h-5'),null);
+    frag.appendChild(temp.firstElementChild);
+  }
+  const mos=mosaicSection(all0);
+  if(mos){const temp=document.createElement('div');temp.innerHTML=mos;frag.appendChild(temp.firstElementChild);}
+  if(bandsQueue[0].games.length>=4)pushBand(frag,bandsQueue[0],bandsQueue[0].games);
+
+  homeOffset=all0.length;
+  homeTotal=batch0.total||0;
+  addDbGames(all0.slice(8),frag);
+  if(homeOffset>=homeTotal||VirtualScroller.rows.length>=MAX_ROWS){homeDone=true;$('#homeSentinel').textContent=VirtualScroller.rows.length>=MAX_ROWS?'🏁 Eso es todo por ahora — explora categorías con el menú ☰':' Has llegado al final: '+homeTotal.toLocaleString('es')+' juegos en total';}
+
+  $('#homeRows').innerHTML='';
+  $('#homeRows').appendChild(frag);
+  refreshAds($('#homeRows'));
+  VirtualScroller.updateVisibility();VirtualScroller.fillVisibleRows();
+  setActive(btn||document.querySelector('[data-nav="home"]'));
+  window.scrollTo({top:0});
+}
+
+let searchTimeout;
+function debouncedSearch(v){clearTimeout(searchTimeout);searchTimeout=setTimeout(()=>{state.search=v.trim();if(state.search){state.category=null;setActive(null);loadBrowse(null);}else if(state.category)loadBrowse(document.querySelector(`.side-link[data-category="${state.category}"]`));else loadHome(null);},PERF.DEBOUNCE_SEARCH);}
+
+function appendBrowse(){
+  if(browseLoading||browseOffset>=browseTotal)return;
+  browseLoading=true;
+  api('/api/games',Object.assign({limit:BROWSE_CHUNK,offset:browseOffset},browseParams))
+    .then(d=>{const frag=document.createDocumentFragment();const t=document.createElement('div');t.innerHTML=d.games.map(g=>tileHTML(g,'aspect-[16/10]')).join('');while(t.firstChild)frag.appendChild(t.firstChild);$('#browseGrid').appendChild(frag);browseOffset+=d.games.length;browseLoading=false;})
+    .catch(()=>{browseLoading=false;});
+}
+
+function setBrowse(games,total,titleHTML){
+  browseTotal=total;browseOffset=games.length;
+  $('#browseTitle').innerHTML=titleHTML;
+  $('#browseGrid').innerHTML=games.map(g=>tileHTML(g,'aspect-[16/10]')).join('');
+  $('#browseEmpty').classList.toggle('hidden',total>0);
+  window.scrollTo({top:0});
+}
+
+async function loadSection(section,title,btn){
+  state.category=null;showView('browse');browseParams={section};
+  try{const d=await api('/api/games',Object.assign({limit:BROWSE_CHUNK,offset:0},browseParams));setBrowse(d.games,d.total,Security.escapeHtml(title));setActive(btn);}
+  catch{ $('#browseGrid').innerHTML='<div class="col-span-full error-state"><p>Error al cargar la sección</p><button onclick="location.reload()" class="retry-btn">Reintentar</button></div>'; }
+}
+
+async function loadBrowse(btn){
+  showView('browse');browseParams={};
+  if(state.category)browseParams.category=state.category;
+  if(state.search)browseParams.search=state.search;
+  try{
+    const d=await api('/api/games',Object.assign({limit:BROWSE_CHUNK,offset:0},browseParams),{skipCache:!!state.search});
+    let t='';
+    if(state.search)t=`Resultados para "<span class="gradient-text">${Security.escapeHtml(state.search)}</span>" <span class="text-xs text-gray-400">(${d.total.toLocaleString('es')} juegos)</span>`;
+    else if(btn)t=`<span class="inline-block align-middle mr-2 text-red-400">${icon(btn.dataset.icon,'w-6 h-6')}</span>${Security.escapeHtml(btn.dataset.label)} <span class="text-xs text-gray-400">(${d.total.toLocaleString('es')} juegos)</span>`;
+    setBrowse(d.games,d.total,t);if(btn)setActive(btn);
+  }catch{ $('#browseGrid').innerHTML='<div class="col-span-full error-state"><p>Error al cargar</p><button onclick="location.reload()" class="retry-btn">Reintentar</button></div>'; }
+}
+
+function stopStage(){clearTimeout(stageState.timer);clearInterval(stageState.tick);$('#stageWrap').innerHTML='';}
+function clearOverlayBg(){const ov=$('#stageOverlay');if(ov)ov.style.backgroundImage='';}
+function stageShow(msg,showFail){const ov=$('#stageOverlay');if(!ov)return;ov.classList.remove('hidden');ov.classList.add('flex');const m=$('#stageMsg');if(m)m.textContent=msg;const sp=$('#stageSpinner');if(sp)sp.classList.toggle('hidden',!!showFail);const f=$('#stageFail');if(f)f.classList.toggle('hidden',!showFail);}
+function stageHide(){clearTimeout(stageState.timer);clearInterval(stageState.tick);const ov=$('#stageOverlay');if(!ov)return;ov.classList.add('hidden');ov.classList.remove('flex');}
+window.__stageLoaded=function(){stageHide();};
+function mountIframe(url){clearOverlayBg();stageState.currentUrl=url;$('#stageWrap').innerHTML=`<iframe class="absolute inset-0 w-full h-full border-0 bg-black" src="${url}" allow="fullscreen; autoplay; gamepad; clipboard-write; magnetometer; gyroscope; accelerometer; payment; picture-in-picture" allowfullscreen onload="try{window.__stageLoaded()}catch(e){}"></iframe>`;}
+function loadSource(i){
+  clearTimeout(stageState.timer);clearInterval(stageState.tick);
+  if(i>=stageState.sources.length){cycleSource();return;}
+  stageState.idx=i;
+  const g=state.current;
+  const logo=g&&g.logo?g.logo:'';
+  const ov=$('#stageOverlay');
+  if(ov&&logo)ov.style.backgroundImage=`linear-gradient(rgba(11,7,8,.82),rgba(11,7,8,.82)), url('${logo}')`;
+  stageShow(i===0?`Cargando ${g&&g.title?g.title:'juego'}…`:`Probando fuente ${i+1} de ${stageState.sources.length}…`,false);
+  let secs=0;
+  stageState.tick=setInterval(()=>{secs+=5;const m=$('#stageMsg');if(m&&!$('#stageOverlay').classList.contains('hidden'))m.textContent=`Sigue cargando… (${secs}s) — los juegos pesados tardan solo la primera vez`;},5000);
+  mountIframe(stageState.sources[i]);
+  stageState.timer=setTimeout(()=>loadSource(i+1),18000);
+}
+function cycleSource(){
+  clearTimeout(stageState.timer);clearInterval(stageState.tick);
+  const s=stageState;
+  if(s.idx+1<s.sources.length){loadSource(s.idx+1);return;}
+  if(s.alts&&s.alts.length){
+    const alt=s.alts.shift();
+    state.current=Object.assign({},state.current,{id:alt.id,title:alt.title,sources:alt.sources,embed_url:alt.embed_url,play_url:alt.play_url});
+    seenGames.set(alt.id,state.current);
+    s.sources=(alt.sources&&alt.sources.length)?alt.sources:[alt.embed_url].filter(Boolean);
+    s.idx=0;
+    $('#tbTitle').textContent=state.current.title;$('#crumbTitle').textContent=state.current.title;
+    toast('🔄 La fuente falló — cargando copia de la BD: '+alt.title);
+    if(s.sources.length)loadSource(0);else stageShow('Este juego no responde 😢',true);
+    return;
+  }
+  stageShow('Este juego no responde 😢',true);
+}
+
+function applyOrientation(){
+  const g=state.current;
+  const hint=$('#rotateHint');
+  const box=$('#stageBox');
+  if(!g||state.view!=='game'||!hint||!box)return;
+  const mobile=window.innerWidth<1024;
+  const portrait=window.innerHeight>window.innerWidth;
+  const orient=g.orientation||'auto';
+  hint.classList.toggle('hidden',!(mobile&&portrait&&orient==='horizontal'));
+  box.classList.toggle('stage-portrait',mobile&&portrait&&orient==='auto');
+  box.classList.toggle('stage-tall',mobile&&portrait&&orient==='vertical');
+}
+
+function showLauncher(g){
+  state.current=g;soundOn=true;
+  showView('game');
+  stopStage();clearOverlayBg();stageHide();
+  const logo=logoURL(g)||'';
+  $('#stageWrap').innerHTML=`
+   <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center p-6" style="${logo?`background:linear-gradient(rgba(11,7,8,.86),rgba(11,7,8,.86)), url('${logo}') center/cover;`:''}">
+     <h2 class="text-2xl md:text-3xl font-extrabold drop-shadow">${Security.escapeHtml(g.title)}</h2>
+     <p class="text-sm text-gray-300 font-medium max-w-md">${Security.escapeHtml(g.desc||'Este juego no permite ser embebido, pero puedes jugarlo gratis en su sitio oficial.')}</p>
+     <a href="${Security.sanitizeUrl(g.play_url)||'#'}" target="_blank" rel="noopener" class="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-500 font-bold shadow-lg shadow-red-800/40 transition">🎮 Jugar en el sitio oficial</a>
+     <button id="copyLinkBtn" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold transition">Copiar enlace</button>
+   </div>`;
+  const cb=$('#copyLinkBtn');
+  if(cb)cb.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(g.play_url);toast('🔗 Enlace copiado');}catch{toast('Copia el enlace manualmente');}});
+  finishGameView(g);
+}
+
+function finishGameView(g){
+  const logo=logoURL(g);
+  const tb=$('#tbEmoji');
+  tb.className=`w-8 h-8 rounded-lg bg-gradient-to-br ${g.gradient} flex items-center justify-center text-lg shrink-0 overflow-hidden`;
+  tb.innerHTML=logo?`<img src="${logo}" class="w-6 h-6 object-contain">`:Security.escapeHtml(g.emoji);
+  $('#tbTitle').textContent=g.title;refreshToolbar();
+  const cat=CATS.find(c=>c.slug===g.category);
+  $('#crumbCat').textContent=cat?cat.name:g.category;
+  $('#crumbTitle').textContent=g.title;
+  $('#stageAd').innerHTML=adBanner();
+  $('#railAd').innerHTML=adBanner();
+  $('#gameInfo').innerHTML=gameInfoHTML(g);
+  loadAdScript();refreshAds($('#gameView'));
+  loadRail(g);
+  applyOrientation();
+  window.scrollTo({top:0});
+}
+
+async function loadRail(g){
+  const total=homeTotal||38000;
+  const off=(railCounter*RAIL_SIZE)%Math.max(1,total-RAIL_SIZE);
+  railCounter++;
+  let list=[];
+  try{
+    const same=await api('/api/games',{category:g?g.category:'',limit:12});
+    list=(same.games||[]).filter(x=>!g||x.id!==g.id);
+    if(list.length<RAIL_SIZE){
+      const win=await api('/api/games',{limit:RAIL_SIZE,offset:off});
+      for(const x of (win.games||[])){ if(list.length>=RAIL_SIZE)break; if((!g||x.id!==g.id)&&!list.some(o=>o.id===x.id))list.push(x); }
+    }
+  }catch{}
+  railQueue=list.slice(0,RAIL_SIZE);
+  railShown=0;
+  $('#nextGames').innerHTML='';
+  appendRail();
+}
+function appendRail(){
+  const slice=railQueue.slice(railShown,railShown+12);
+  $('#nextGames').insertAdjacentHTML('beforeend', slice.map(x=>nextTile(x)).join(''));
+  railShown+=slice.length;
+}
+
+function showView(n){
+  if(state.view==='game'&&n!=='game'){
+    stopStage();clearOverlayBg();
+    const h=$('#rotateHint');if(h)h.classList.add('hidden');
+    const b=$('#stageBox');if(b){b.classList.remove('stage-portrait');b.classList.remove('stage-tall');}
+  }
+  state.view=n;
+  $('#homeView').classList.toggle('hidden',n!=='home');
+  $('#browseView').classList.toggle('hidden',n!=='browse');
+  $('#gameView').classList.toggle('hidden',n!=='game');
+}
+
+async function openGame(id){
+  const gameId=Security.validateGameId(id);
+  if(!gameId){toast('ID de juego inválido');return;}
+  let g=seenGames.get(gameId);
+  if(!g){
+    if(String(gameId).startsWith('c')){const d=await api('/api/curated',{});g=(d.games||[]).find(x=>x.id===gameId);}
+    else{try{const d=await api('/api/game/'+gameId,{});g=d.game;g.__alts=d.alternativas;}catch{toast('Error al buscar el juego en la base de datos');return;}}
+    if(!g){toast('Juego no encontrado');return;}
+    seenGames.set(gameId,g);
+  }
+  const sources=(g.sources||[]).map(u=>u&&u.startsWith('/')?u:Security.sanitizeUrl(u)).filter(Boolean);
+  if(!sources.length||g.blocked){showLauncher(g);return;}
+  state.current=g;soundOn=true;
+  showView('game');
+
+  const rec=store.get('obito_recent_games',[]);
+  const mini={id:g.id,title:g.title,emoji:g.emoji,gradient:g.gradient,logo:g.logo,category:g.category,embed_url:sources[0],play_url:g.play_url,active_players:g.active_players};
+  const ix=rec.findIndex(r=>r.id===g.id);if(ix>-1)rec.splice(ix,1);
+  rec.unshift(mini);store.set('obito_recent_games',rec.slice(0,12));
+
+  stageState.sources=sources;
+  stageState.alts=(g.__alts||[]).map(a=>({id:a.id,title:a.title,sources:(a.sources||[]).map(u=>Security.sanitizeUrl(u)).filter(Boolean),embed_url:Security.sanitizeUrl(a.embed_url),play_url:a.play_url}));
+  stageState.idx=0;
+  loadSource(0);
+  finishGameView(g);
+}
+
+function refreshToolbar(){
+  const g=state.current;if(!g)return;const liked=!!likesMap[g.id];
+  $('#likeBtn').innerHTML=`${icon('thumbup','w-4 h-4')} <span>${fmt(g.likes+(liked?1:0))}</span>`;$('#likeBtn').classList.toggle('on',liked);
+  $('#dislikeBtn').innerHTML=icon('thumbdown','w-4 h-4');
+  $('#favBtn').innerHTML=icon('bookmark','w-4 h-4',!!favsMap[g.id]);$('#favBtn').classList.toggle('on',!!favsMap[g.id]);
+  $('#comBtn').innerHTML=icon('comment','w-4 h-4');
+  $('#shareBtn').innerHTML=icon('share','w-4 h-4');
+  $('#soundBtn').innerHTML=icon(soundOn?'volume':'volumeX','w-4 h-4');$('#soundBtn').classList.toggle('on',!soundOn);
+  $('#reportBtn').innerHTML=icon('flag','w-4 h-4');
+  $('#tabBtn').innerHTML=icon('external','w-4 h-4');
+  $('#fsBtn').innerHTML=icon('maximize','w-4 h-4');
+}
+
+function renderSidebar(cats){
+  $('#mainNav').innerHTML=MAIN_NAV.map(n=>`<button class="side-link ${n.disabled?'disabled':''}" ${n.disabled?'data-disabled="1"':''} data-nav="${n.id}" ${n.section?`data-section="${n.section}"`:''} data-label="${Security.escapeHtml(n.label)}">${icon(n.icon)}<span class="truncate">${Security.escapeHtml(n.label)}</span></button>`).join('');
+  $('#categoryNav').innerHTML=cats.map(c=>`<button class="side-link" data-category="${Security.escapeHtml(c.slug)}" data-label="${Security.escapeHtml(c.name)}" data-icon="${Security.escapeHtml(c.icon)}">${icon(c.icon)}<span class="truncate">${Security.escapeHtml(c.name)}</span></button>`).join('');
+}
+function setActive(btn){document.querySelectorAll('.side-link').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');}
+
+function setSidebar(open){
+  sidebarOpen=open;
+  $('#sidebar').classList.toggle('-translate-x-full',!open);
+  $('#mainCol').classList.toggle('lg:pl-60',open);
+  $('#sidebarBackdrop').classList.toggle('hidden',!(open&&window.innerWidth<1024));
+}
+
+function route(){
+  const h=location.hash;const key=h||'#home';if(key===lastRoute)return;lastRoute=key;let m;
+  if((m=h.match(/^#juego-([A-Za-z0-9_-]{1,128})$/))){openGame(m[1]);return;}
+  if((m=h.match(/^#cat-([a-z-]+)$/))){state.category=m[1];state.search='';$('#searchInput').value='';loadBrowse(document.querySelector(`.side-link[data-category="${m[1]}"]`));return;}
+  if((m=h.match(/^#sec-([a-z]+)$/))){const n=MAIN_NAV.find(x=>x.section===m[1]);loadSection(m[1],n?n.label:'Juegos',document.querySelector(`[data-section="${m[1]}"]`));return;}
+  loadHome(null);
+}
+function goHash(h){if(h){if(location.hash!==h)location.hash=h;else{lastRoute=null;route();}}else{history.pushState(null,'',location.pathname+location.search);lastRoute=null;route();}}
+window.addEventListener('hashchange',route);
+window.addEventListener('popstate',()=>{lastRoute=null;route();});
+window.addEventListener('resize',()=>{if(window.innerWidth>=1024)$('#sidebarBackdrop').classList.add('hidden');else if(sidebarOpen)$('#sidebarBackdrop').classList.remove('hidden');applyOrientation();});
+window.addEventListener('orientationchange',()=>setTimeout(applyOrientation,150));
+
+const warmed=new Set();let warmCount=0;
+document.addEventListener('mouseover',e=>{
+  const t=e.target.closest('[data-warm]');
+  if(!t||warmCount>=200)return;
+  const u=t.dataset.warm;
+  if(!u||warmed.has(u))return;
+  warmed.add(u);warmCount++;
+  fetch(u,{mode:'no-cors',cache:'force-cache'}).catch(()=>{});
+});
+
+function bindEvents(){
+  document.addEventListener('click',e=>{
+    const arrow=e.target.closest('.row-arrow');
+    if(arrow){const track=arrow.parentElement.querySelector('.row-track');if(track){if(!track.dataset.filled){const sec=arrow.closest('section[data-row]');if(sec){const row=VirtualScroller.rows[+sec.dataset.row];if(row&&!row.filled)VirtualScroller.fillRow(row);}}track.scrollBy({left:track.clientWidth*0.85*(+arrow.dataset.dir),behavior:'smooth'});}return;}
+    const chip=e.target.closest('.side-chip');
+    if(chip){goHash('#cat-'+chip.dataset.category);return;}
+    const play=e.target.closest('[data-play]');if(play){e.preventDefault();goHash('#juego-'+play.dataset.play);return;}
+    const side=e.target.closest('.side-link');
+    if(side&&!side.dataset.disabled){
+      if(side.dataset.nav==='home')goHash('');
+      else if(side.dataset.section)goHash('#sec-'+side.dataset.section);
+      else if(side.dataset.category)goHash('#cat-'+side.dataset.category);
+      if(window.innerWidth<1024)setSidebar(false);
+    }
+  });
+  $('#menuBtn').addEventListener('click',()=>setSidebar(!sidebarOpen));
+  $('#sidebarBackdrop').addEventListener('click',()=>setSidebar(false));
+  $('#searchInput').addEventListener('input',e=>debouncedSearch(e.target.value));
+  const hb=document.querySelector('header [data-nav="home"]');if(hb)hb.addEventListener('click',()=>goHash(''));
+  $('#likeBtn').addEventListener('click',()=>{const g=state.current;if(!g)return;likesMap[g.id]=!likesMap[g.id];store.set('obito_likes',likesMap);refreshToolbar();toast(likesMap[g.id]?'👍 ¡Gracias por tu like!':'Like retirado');});
+  $('#dislikeBtn').addEventListener('click',()=>toast('😕 Te recomendaremos otros juegos'));
+  $('#favBtn').addEventListener('click',()=>{const g=state.current;if(!g)return;favsMap[g.id]=!favsMap[g.id];store.set('obito_favs',favsMap);refreshToolbar();toast(favsMap[g.id]?'🔖 Guardado en Mis Juegos':'Eliminado de Mis Juegos');});
+  $('#comBtn').addEventListener('click',()=>toast('💬 Comentarios disponibles próximamente'));
+  $('#shareBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('🔗 ¡Enlace del juego copiado!');}catch{toast('Copia el enlace manualmente');}});
+  $('#soundBtn').addEventListener('click',()=>{
+    soundOn=!soundOn;refreshToolbar();
+    if(!soundOn){stopStage();const g=state.current;const logo=g&&g.logo?g.logo:'';const ov=$('#stageOverlay');if(ov&&logo)ov.style.backgroundImage=`linear-gradient(rgba(11,7,8,.88),rgba(11,7,8,.88)), url('${logo}')`;stageShow('🔇 Silenciado — juego en pausa',true);const fr=$('#failRetry');if(fr)fr.textContent='Reanudar con sonido';}
+    else{clearOverlayBg();const fr=$('#failRetry');if(fr)fr.textContent='Reintentar';loadSource(stageState.idx||0);}
+  });
+  $('#reportBtn').addEventListener('click',()=>toast('🚩 Reporte enviado'));
+  $('#tabBtn').addEventListener('click',()=>{if(state.current&&state.current.play_url)window.open(state.current.play_url,'_blank','noopener,noreferrer');});
+  $('#fsBtn').addEventListener('click',()=>{const b=$('#stageBox');if(document.fullscreenElement)document.exitFullscreen();else if(b.requestFullscreen)b.requestFullscreen();});
+  $('#inviteBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('🔗 ¡Enlace copiado!');}catch{toast('Copia el enlace manualmente');}});
+  $('#crumbHome').addEventListener('click',()=>goHash(''));
+  $('#crumbCat').addEventListener('click',()=>{if(state.current)goHash('#cat-'+state.current.category);});
+  $('#loadOpen').addEventListener('click',()=>{const u=stageState.currentUrl||(state.current&&state.current.play_url);if(u)window.open(u,'_blank','noopener');});
+  $('#failRetry').addEventListener('click',()=>{if(!soundOn){soundOn=true;refreshToolbar();clearOverlayBg();const fr=$('#failRetry');fr.textContent='Reintentar';loadSource(stageState.idx||0);}else loadSource(0);});
+  $('#failOpen').addEventListener('click',()=>{const u=stageState.currentUrl||(state.current&&state.current.play_url);if(u)window.open(u,'_blank','noopener');});
+  window.addEventListener('scroll',onScroll,{passive:true});
+  new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting&&!$('#homeView').classList.contains('hidden'))fetchHomeBatch();});},{rootMargin:'900px 0px'}).observe($('#homeSentinel'));
+  new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting&&!$('#browseView').classList.contains('hidden'))appendBrowse();});},{rootMargin:'700px 0px'}).observe($('#browseSentinel'));
+  new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting&&railShown<railQueue.length)appendRail();});},{rootMargin:'600px 0px'}).observe($('#railSentinel'));
+}
+
+async function init(){
+  try{
+    const [catData,curData]=await Promise.all([api('/api/categories',{}),api('/api/curated',{})]);
+    CATS=catData.categories||[];CUR=curData.games||[];
+    renderSidebar(CATS);
+    bindEvents();
+    route();
+  }catch(err){
+    console.error('Init error:',err);
+    $('#homeRows').innerHTML='<div class="p-8 text-center"><p class="text-red-400 mb-4 font-semibold">Error al cargar la aplicación. Verifica tu conexión.</p><button onclick="location.reload()" class="px-6 py-2 bg-red-600 rounded-lg hover:bg-red-500 transition font-bold">Reintentar</button></div>';
+  }
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+</script>
+</body>
+</html>
