@@ -53,6 +53,12 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
   .retry-btn:hover{background:#ef4444;}
   *{-webkit-tap-highlight-color:transparent;}
   .row-track,#browseGrid{contain:layout style paint;}
+  .tab-btn{padding:.5rem 1rem;border-radius:.5rem;font-size:.85rem;font-weight:700;color:#9ca3af;transition:all .2s;}
+  .tab-btn:hover{color:#fff;background:rgba(255,255,255,.05);}
+  .tab-btn.active{color:#fca5a5;background:rgba(220,38,38,.15);}
+  .modal-game-item{display:flex;align-items:center;gap:.75rem;padding:.75rem;border-radius:.75rem;background:rgba(255,255,255,.03);transition:all .2s;cursor:pointer;}
+  .modal-game-item:hover{background:rgba(220,38,38,.1);}
+  .modal-game-thumb{width:3rem;height:3rem;border-radius:.5rem;object-fit:cover;flex-shrink:0;background:linear-gradient(135deg,#dc2626,#7f1d1d);}
 </style>
 </head>
 <body class="text-white min-h-screen">
@@ -79,13 +85,13 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
       </div>
     </div>
     <div class="hidden md:flex items-center gap-2 shrink-0">
-      <button class="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-red-900/30 text-sm font-semibold transition">
+      <button id="amigosBtn" class="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-red-900/30 text-sm font-semibold transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Amigos
       </button>
-      <button class="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-red-900/30 text-sm font-semibold transition">
+      <button id="misJuegosBtn" class="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-red-900/30 text-sm font-semibold transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>Mis Juegos
       </button>
-      <button class="px-5 py-2 rounded-full bg-red-600 hover:bg-red-500 text-sm font-bold shadow-lg shadow-red-700/50 transition">Iniciar sesión</button>
+      <button id="loginBtn" class="px-5 py-2 rounded-full bg-red-600 hover:bg-red-500 text-sm font-bold shadow-lg shadow-red-700/50 transition">Iniciar sesión</button>
     </div>
   </div>
 </header>
@@ -132,7 +138,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
               <button id="failOpen" class="block mx-auto px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold">Abrir en pestaña nueva</button>
             </div>
           </div>
-          <div id="rotateHint" class="hidden flex absolute inset-0 z-30 bg-[#0b0708]/95 flex-col items-center justify-center gap-4 text-center p-6">
+          <div id="rotateHint" class="hidden absolute inset-0 z-30 bg-[#0b0708]/95 flex-col items-center justify-center gap-4 text-center p-6">
             <svg class="w-16 h-16 text-red-500 tilt-anim" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
             <p class="font-extrabold text-lg text-gray-100">Gira tu móvil para jugar</p>
             <p class="text-sm text-gray-400 font-medium max-w-xs">Este juego se juega en horizontal. Gira el dispositivo para continuar la partida.</p>
@@ -177,11 +183,113 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
   <footer class="px-6 py-8 border-t border-red-900/30 text-center text-sm text-gray-500 font-medium">© 2026 Obito Games — Hecho con 🖤❤️ y modo sabio activado</footer>
 </main>
 
+<!-- ===== MODAL: MIS JUEGOS ===== -->
+<div id="misJuegosModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black/70 p-4">
+  <div class="glass w-full max-w-md rounded-2xl p-6 max-h-[80vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-extrabold">Mis Juegos</h2>
+      <button id="closeMisJuegos" class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-xl">✕</button>
+    </div>
+    <div class="flex gap-2 mb-4 border-b border-red-900/30 pb-2">
+      <button class="tab-btn active" data-tab="guardados">Guardados</button>
+      <button class="tab-btn" data-tab="recientes">Recientes</button>
+      <button class="tab-btn" data-tab="likes">Me Gustan</button>
+    </div>
+    <div id="misJuegosContent" class="space-y-3"></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: LOGIN ===== -->
+<div id="loginModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black/70 p-4">
+  <div class="glass w-full max-w-sm rounded-2xl p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-extrabold">Conectarse o registrarse</h2>
+      <button id="closeLogin" class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-xl">✕</button>
+    </div>
+    <div id="loginForm" class="space-y-3">
+      <button class="social-login w-full py-3 rounded-xl bg-white text-gray-900 font-bold flex items-center justify-center gap-2 hover:bg-gray-100 transition" data-provider="google">
+        <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Acceder con Google
+      </button>
+      <button class="social-login w-full py-3 rounded-xl bg-[#1877F2] text-white font-bold flex items-center justify-center gap-2 hover:bg-[#166fe5] transition" data-provider="facebook">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        Continuar con Facebook
+      </button>
+      <button class="social-login w-full py-3 rounded-xl bg-white text-gray-900 font-bold flex items-center justify-center gap-2 hover:bg-gray-100 transition" data-provider="apple">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74 1.18 0 2.45-1.02 4.11-.87 3.05.26 4.72 2.08 5.26 3.09-4.35 2.58-3.69 8.38.69 10.25-.98 2.35-2.35 4.69-4.14 4.76zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+        Continuar con Apple
+      </button>
+      <div class="relative my-4">
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-red-900/30"></div></div>
+        <div class="relative flex justify-center text-xs"><span class="bg-[#120a0b] px-2 text-gray-500">O</span></div>
+      </div>
+      <input id="loginEmail" type="email" placeholder="Introduce tu dirección de correo electrónico" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-red-900/40 text-sm focus:outline-none focus:border-red-500">
+      <button id="loginEmailBtn" class="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 font-bold transition opacity-50 cursor-not-allowed" disabled>Continúa</button>
+    </div>
+    <div id="userInfo" class="hidden mt-4 p-4 rounded-xl bg-white/5">
+      <p class="text-sm text-gray-300">Sesión iniciada como: <span id="userEmail" class="font-bold text-white"></span></p>
+      <button id="logoutBtn" class="mt-2 text-xs text-red-400 hover:text-red-300">Cerrar sesión</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: AMIGOS ===== -->
+<div id="amigosModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black/70 p-4">
+  <div class="glass w-full max-w-md rounded-2xl p-6 max-h-[80vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-extrabold">Amigos</h2>
+      <button id="closeAmigos" class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-xl">✕</button>
+    </div>
+    <div class="mb-4 p-4 rounded-xl bg-white/5">
+      <p class="text-xs text-gray-400 mb-2">Tu código de amigo:</p>
+      <div class="flex items-center gap-2">
+        <code id="friendCode" class="flex-1 px-3 py-2 rounded-lg bg-black/30 text-sm font-mono text-red-400"></code>
+        <button id="copyFriendCode" class="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-xs font-bold">Copiar</button>
+      </div>
+    </div>
+    <div class="mb-4">
+      <input id="addFriendInput" type="text" placeholder="Pega el código de un amigo" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-red-900/40 text-sm focus:outline-none focus:border-red-500">
+      <button id="addFriendBtn" class="mt-2 w-full py-2 rounded-xl bg-red-600 hover:bg-red-500 font-bold text-sm">Agregar amigo</button>
+    </div>
+    <h3 class="font-bold mb-2">Tus amigos</h3>
+    <div id="friendsList" class="space-y-2"></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: COMENTARIOS ===== -->
+<div id="comentariosModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black/70 p-4">
+  <div class="glass w-full max-w-md rounded-2xl p-6 max-h-[80vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-extrabold">Comentarios</h2>
+      <button id="closeComentarios" class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-xl">✕</button>
+    </div>
+    <div id="comentariosList" class="space-y-3 mb-4 max-h-60 overflow-y-auto"></div>
+    <textarea id="comentarioInput" rows="3" placeholder="Escribe un comentario..." class="w-full px-4 py-3 rounded-xl bg-white/5 border border-red-900/40 text-sm focus:outline-none focus:border-red-500 resize-none"></textarea>
+    <button id="enviarComentario" class="mt-2 w-full py-2 rounded-xl bg-red-600 hover:bg-red-500 font-bold text-sm">Enviar comentario</button>
+  </div>
+</div>
+
+<!-- ===== MODAL: REPORTAR ===== -->
+<div id="reportarModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black/70 p-4">
+  <div class="glass w-full max-w-sm rounded-2xl p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-extrabold">Reportar juego</h2>
+      <button id="closeReportar" class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-xl">✕</button>
+    </div>
+    <p class="text-sm text-gray-400 mb-4">¿Por qué reportas este juego?</p>
+    <div class="space-y-2">
+      <button class="report-reason w-full text-left px-4 py-3 rounded-xl bg-white/5 hover:bg-red-900/30 text-sm transition">🚫 Contenido inapropiado</button>
+      <button class="report-reason w-full text-left px-4 py-3 rounded-xl bg-white/5 hover:bg-red-900/30 text-sm transition">🐛 El juego no funciona</button>
+      <button class="report-reason w-full text-left px-4 py-3 rounded-xl bg-white/5 hover:bg-red-900/30 text-sm transition">🔞 Contenido para adultos</button>
+      <button class="report-reason w-full text-left px-4 py-3 rounded-xl bg-white/5 hover:bg-red-900/30 text-sm transition">⚠️ Otro motivo</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] glass px-5 py-2.5 rounded-full text-sm font-semibold opacity-0 transition pointer-events-none"></div>
 
 <script>
 const PERF={DEBOUNCE_SEARCH:250};
-/* ===== CONFIG DE ANUNCIOS: pega aquí tu ID de AdSense cuando lo tengas ===== */
 const ADS={client:"",slots:{stage:"",rail:"",home:"",info:""}};
 const $=s=>document.querySelector(s);
 const state={category:null,search:'',current:null,view:'home'};
@@ -192,7 +300,7 @@ let browseOffset=0,browseTotal=0,browseLoading=false,browseParams={};
 let railQueue=[],railShown=0,railCounter=0;
 const CHUNK=50, HOME_BATCH=100, BROWSE_CHUNK=40, MAX_ROWS=30, RAIL_SIZE=40;
 let stageState={sources:[],idx:0,alts:[],timer:null,tick:null,currentUrl:null};
-let soundOn=true, dbRowsCreated=0, bandsQueue=[];
+let soundOn=true, globalMuted=false, dbRowsCreated=0, bandsQueue=[];
 
 const ROW_NAMES=['Joyas ocultas de la comunidad','Recién llegados al arcade','Para maratonear esta noche','Reto aceptado: supera tu récord','Modo relajado: juega sin prisa','Velocidad máxima y reflejos','Píxeles, nostalgia y gloria','Caos divertido garantizado','Épicos, gigantes y legendarios','Secretos mejor guardados','Fiebre de fin de semana','Nivel experto: entra si puedes'];
 
@@ -253,7 +361,6 @@ function fmt(n){if(n>=1e6)return (n/1e6).toFixed(1).replace('.0','')+' M';if(n>=
 let toastTimer=null;
 function toast(m){const t=$('#toast');t.textContent=m;t.style.opacity='1';if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.style.opacity='0';},2500);}
 
-/* ===== ANUNCIOS: AdSense real si hay client; placeholder mientras tanto ===== */
 function adBanner(compact){
   if(ADS.client){
     const slot=ADS.slots[compact?'info':'home']||"";
@@ -502,7 +609,7 @@ async function loadHome(btn){
   homeOffset=all0.length;
   homeTotal=batch0.total||0;
   addDbGames(all0.slice(8),frag);
-  if(homeOffset>=homeTotal||VirtualScroller.rows.length>=MAX_ROWS){homeDone=true;$('#homeSentinel').textContent=VirtualScroller.rows.length>=MAX_ROWS?'🏁 Eso es todo por ahora — explora categorías con el menú ☰':' Has llegado al final: '+homeTotal.toLocaleString('es')+' juegos en total';}
+  if(homeOffset>=homeTotal||VirtualScroller.rows.length>=MAX_ROWS){homeDone=true;$('#homeSentinel').textContent=VirtualScroller.rows.length>=MAX_ROWS?'🏁 Eso es todo por ahora — explora categorías con el menú ☰':'🏁 Has llegado al final: '+homeTotal.toLocaleString('es')+' juegos en total';}
 
   $('#homeRows').innerHTML='';
   $('#homeRows').appendChild(frag);
@@ -665,6 +772,7 @@ function showView(n){
     stopStage();clearOverlayBg();
     const h=$('#rotateHint');if(h)h.classList.add('hidden');
     const b=$('#stageBox');if(b){b.classList.remove('stage-portrait');b.classList.remove('stage-tall');}
+    if(globalMuted){globalMuted=false;soundOn=true;refreshToolbar();}
   }
   state.view=n;
   $('#homeView').classList.toggle('hidden',n!=='home');
@@ -767,25 +875,267 @@ function bindEvents(){
   $('#sidebarBackdrop').addEventListener('click',()=>setSidebar(false));
   $('#searchInput').addEventListener('input',e=>debouncedSearch(e.target.value));
   const hb=document.querySelector('header [data-nav="home"]');if(hb)hb.addEventListener('click',()=>goHash(''));
-  $('#likeBtn').addEventListener('click',()=>{const g=state.current;if(!g)return;likesMap[g.id]=!likesMap[g.id];store.set('obito_likes',likesMap);refreshToolbar();toast(likesMap[g.id]?'👍 ¡Gracias por tu like!':'Like retirado');});
-  $('#dislikeBtn').addEventListener('click',()=>toast('😕 Te recomendaremos otros juegos'));
-  $('#favBtn').addEventListener('click',()=>{const g=state.current;if(!g)return;favsMap[g.id]=!favsMap[g.id];store.set('obito_favs',favsMap);refreshToolbar();toast(favsMap[g.id]?'🔖 Guardado en Mis Juegos':'Eliminado de Mis Juegos');});
-  $('#comBtn').addEventListener('click',()=>toast('💬 Comentarios disponibles próximamente'));
-  $('#shareBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('🔗 ¡Enlace del juego copiado!');}catch{toast('Copia el enlace manualmente');}});
-  $('#soundBtn').addEventListener('click',()=>{
-    soundOn=!soundOn;refreshToolbar();
-    if(!soundOn){stopStage();const g=state.current;const logo=g&&g.logo?g.logo:'';const ov=$('#stageOverlay');if(ov&&logo)ov.style.backgroundImage=`linear-gradient(rgba(11,7,8,.88),rgba(11,7,8,.88)), url('${logo}')`;stageShow('🔇 Silenciado — juego en pausa',true);const fr=$('#failRetry');if(fr)fr.textContent='Reanudar con sonido';}
-    else{clearOverlayBg();const fr=$('#failRetry');if(fr)fr.textContent='Reintentar';loadSource(stageState.idx||0);}
+
+  $('#likeBtn').addEventListener('click',()=>{
+    const g=state.current;if(!g)return;
+    likesMap[g.id]=!likesMap[g.id];
+    store.set('obito_likes',likesMap);
+    refreshToolbar();
+    toast(likesMap[g.id]?'👍 ¡Te gusta este juego!':'Like retirado');
   });
-  $('#reportBtn').addEventListener('click',()=>toast('🚩 Reporte enviado'));
-  $('#tabBtn').addEventListener('click',()=>{if(state.current&&state.current.play_url)window.open(state.current.play_url,'_blank','noopener,noreferrer');});
-  $('#fsBtn').addEventListener('click',()=>{const b=$('#stageBox');if(document.fullscreenElement)document.exitFullscreen();else if(b.requestFullscreen)b.requestFullscreen();});
-  $('#inviteBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('🔗 ¡Enlace copiado!');}catch{toast('Copia el enlace manualmente');}});
+
+  $('#dislikeBtn').addEventListener('click',()=>{
+    const g=state.current;if(!g)return;
+    if(likesMap[g.id]){delete likesMap[g.id];store.set('obito_likes',likesMap);refreshToolbar();}
+    toast('😕 Tomamos nota. Te recomendaremos otros juegos.');
+  });
+
+  $('#favBtn').addEventListener('click',()=>{
+    const g=state.current;if(!g)return;
+    favsMap[g.id]=!favsMap[g.id];
+    store.set('obito_favs',favsMap);
+    refreshToolbar();
+    toast(favsMap[g.id]?'🔖 Guardado en Mis Juegos':'Eliminado de Mis Juegos');
+  });
+
+  $('#misJuegosBtn').addEventListener('click',()=>openMisJuegos());
+  function openMisJuegos(tab='guardados'){
+    const modal=$('#misJuegosModal');
+    modal.classList.remove('hidden');modal.classList.add('flex');
+    renderMisJuegos(tab);
+    document.querySelectorAll('.tab-btn').forEach(b=>{
+      b.classList.toggle('active',b.dataset.tab===tab);
+      b.onclick=()=>renderMisJuegos(b.dataset.tab);
+    });
+  }
+  function renderMisJuegos(tab){
+    const cont=$('#misJuegosContent');
+    let games=[];
+    if(tab==='guardados')games=Object.keys(favsMap).filter(id=>favsMap[id]).map(id=>seenGames.get(id)||CUR.find(g=>String(g.id)===String(id))).filter(Boolean);
+    else if(tab==='recientes')games=(store.get('obito_recent_games',[])||[]).map(g=>seenGames.get(String(g.id))||g).filter(Boolean);
+    else if(tab==='likes')games=Object.keys(likesMap).filter(id=>likesMap[id]).map(id=>seenGames.get(id)||CUR.find(g=>String(g.id)===String(id))).filter(Boolean);
+    if(!games.length){cont.innerHTML='<p class="text-center text-gray-500 py-8">No hay juegos aquí todavía.</p>';return;}
+    cont.innerHTML=games.map(g=>{
+      const logo=logoURL(g);
+      return `<div class="modal-game-item" data-play="${g.id}">
+        ${logo?`<img src="${logo}" class="modal-game-thumb">`:`<div class="modal-game-thumb bg-gradient-to-br ${g.gradient} flex items-center justify-center text-xl">${g.emoji}</div>`}
+        <div class="flex-1 min-w-0"><p class="font-bold text-sm truncate">${Security.escapeHtml(g.title)}</p><p class="text-xs text-gray-500">${g.active_players?g.active_players.toLocaleString('es')+' jugadores':''}</p></div>
+      </div>`;
+    }).join('');
+    cont.querySelectorAll('[data-play]').forEach(el=>el.addEventListener('click',()=>{
+      $('#misJuegosModal').classList.add('hidden');$('#misJuegosModal').classList.remove('flex');
+      goHash('#juego-'+el.dataset.play);
+    }));
+  }
+  $('#closeMisJuegos').addEventListener('click',()=>{$('#misJuegosModal').classList.add('hidden');$('#misJuegosModal').classList.remove('flex');});
+
+  $('#comBtn').addEventListener('click',()=>openComentarios());
+  function openComentarios(){
+    const modal=$('#comentariosModal');
+    modal.classList.remove('hidden');modal.classList.add('flex');
+    renderComentarios();
+  }
+  function renderComentarios(){
+    const g=state.current;if(!g)return;
+    const key='obito_com_'+g.id;
+    const coms=store.get(key,[]);
+    const cont=$('#comentariosList');
+    if(!coms.length){cont.innerHTML='<p class="text-center text-gray-500 py-4">Sé el primero en comentar.</p>';return;}
+    cont.innerHTML=coms.map(c=>`<div class="p-3 rounded-xl bg-white/5"><p class="text-xs text-gray-500 mb-1">${new Date(c.ts).toLocaleString('es')}</p><p class="text-sm text-gray-200">${Security.escapeHtml(c.text)}</p></div>`).join('');
+  }
+  $('#enviarComentario').addEventListener('click',()=>{
+    const g=state.current;if(!g)return;
+    const input=$('#comentarioInput');
+    const text=input.value.trim();
+    if(!text)return;
+    const key='obito_com_'+g.id;
+    const coms=store.get(key,[]);
+    coms.unshift({text,ts:Date.now()});
+    store.set(key,coms.slice(0,50));
+    input.value='';
+    renderComentarios();
+    toast('💬 Comentario enviado');
+  });
+  $('#closeComentarios').addEventListener('click',()=>{$('#comentariosModal').classList.add('hidden');$('#comentariosModal').classList.remove('flex');});
+
+  $('#shareBtn').addEventListener('click',async()=>{
+    const g=state.current;
+    const url=location.href;
+    const title=g?g.title+' - Obito Games':'Obito Games';
+    if(navigator.share){
+      try{await navigator.share({title,url});toast('🔗 Compartido');}catch{}
+    }else{
+      try{await navigator.clipboard.writeText(url);toast('🔗 Enlace copiado al portapapeles');}
+      catch{toast('Copia el enlace manualmente: '+url);}
+    }
+  });
+
+  $('#soundBtn').addEventListener('click',()=>{
+    globalMuted=!globalMuted;
+    soundOn=!globalMuted;
+    refreshToolbar();
+    if(globalMuted){
+      stopStage();
+      const g=state.current;const logo=g&&g.logo?g.logo:'';
+      const ov=$('#stageOverlay');
+      if(ov&&logo)ov.style.backgroundImage=`linear-gradient(rgba(11,7,8,.88),rgba(11,7,8,.88)), url('${logo}')`;
+      stageShow('🔇 Silenciado — juego en pausa',true);
+      const fr=$('#failRetry');if(fr)fr.textContent='Reanudar con sonido';
+      toast('🔇 Audio silenciado hasta que vuelvas al inicio');
+    }else{
+      clearOverlayBg();
+      const fr=$('#failRetry');if(fr)fr.textContent='Reintentar';
+      loadSource(stageState.idx||0);
+      toast('🔊 Audio reactivado');
+    }
+  });
+
+  $('#reportBtn').addEventListener('click',()=>{
+    const modal=$('#reportarModal');
+    modal.classList.remove('hidden');modal.classList.add('flex');
+  });
+  document.querySelectorAll('.report-reason').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      $('#reportarModal').classList.add('hidden');$('#reportarModal').classList.remove('flex');
+      toast('🚩 Reporte enviado. Revisaremos el juego.');
+    });
+  });
+  $('#closeReportar').addEventListener('click',()=>{$('#reportarModal').classList.add('hidden');$('#reportarModal').classList.remove('flex');});
+
+  $('#fsBtn').addEventListener('click',()=>{
+    const box=$('#stageBox');
+    if(!document.fullscreenElement){
+      if(box.requestFullscreen)box.requestFullscreen();
+      else if(box.webkitRequestFullscreen)box.webkitRequestFullscreen();
+      else if(box.msRequestFullscreen)box.msRequestFullscreen();
+      else toast('Tu navegador no soporta pantalla completa');
+    }else{
+      if(document.exitFullscreen)document.exitFullscreen();
+      else if(document.webkitExitFullscreen)document.webkitExitFullscreen();
+      else if(document.msExitFullscreen)document.msExitFullscreen();
+    }
+  });
+
+  $('#tabBtn').addEventListener('click',()=>{
+    if(state.current&&state.current.play_url)window.open(state.current.play_url,'_blank','noopener,noreferrer');
+    else toast('No hay enlace disponible');
+  });
+
+  $('#inviteBtn').addEventListener('click',async()=>{
+    const url=location.href;
+    if(navigator.share){
+      try{await navigator.share({title:'Juega conmigo en Obito Games',url});toast('🔗 Invitación enviada');}catch{}
+    }else{
+      try{await navigator.clipboard.writeText(url);toast('🔗 Enlace copiado. ¡Compártelo con tus amigos!');}
+      catch{toast('Copia el enlace manualmente');}
+    }
+  });
+
+  $('#loginBtn').addEventListener('click',()=>openLogin());
+  function openLogin(){
+    const modal=$('#loginModal');
+    modal.classList.remove('hidden');modal.classList.add('flex');
+    const user=store.get('obito_user',null);
+    if(user){
+      $('#userInfo').classList.remove('hidden');
+      $('#userEmail').textContent=user.email;
+      $('#loginForm').classList.add('hidden');
+    }else{
+      $('#userInfo').classList.add('hidden');
+      $('#loginForm').classList.remove('hidden');
+    }
+  }
+  $('#loginEmail').addEventListener('input',e=>{
+    const btn=$('#loginEmailBtn');
+    if(e.target.value.includes('@')){btn.disabled=false;btn.classList.remove('opacity-50','cursor-not-allowed');}
+    else{btn.disabled=true;btn.classList.add('opacity-50','cursor-not-allowed');}
+  });
+  $('#loginEmailBtn').addEventListener('click',()=>{
+    const email=$('#loginEmail').value.trim();
+    if(!email.includes('@'))return;
+    store.set('obito_user',{email,ts:Date.now()});
+    $('#userInfo').classList.remove('hidden');
+    $('#userEmail').textContent=email;
+    $('#loginForm').classList.add('hidden');
+    toast('✅ Sesión iniciada como '+email);
+  });
+  $('#logoutBtn').addEventListener('click',()=>{
+    store.set('obito_user',null);
+    $('#userInfo').classList.add('hidden');
+    $('#loginForm').classList.remove('hidden');
+    $('#loginEmail').value='';
+    $('#loginEmailBtn').disabled=true;
+    $('#loginEmailBtn').classList.add('opacity-50','cursor-not-allowed');
+    toast('👋 Sesión cerrada');
+  });
+  $('#closeLogin').addEventListener('click',()=>{$('#loginModal').classList.add('hidden');$('#loginModal').classList.remove('flex');});
+  document.querySelectorAll('.social-login').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const provider=btn.dataset.provider;
+      const fakeEmail='usuario_'+Math.random().toString(36).substr(2,6)+'@'+provider+'.com';
+      store.set('obito_user',{email:fakeEmail,provider,ts:Date.now()});
+      $('#userInfo').classList.remove('hidden');
+      $('#userEmail').textContent=fakeEmail;
+      $('#loginForm').classList.add('hidden');
+      toast('✅ Sesión iniciada con '+provider.charAt(0).toUpperCase()+provider.slice(1));
+    });
+  });
+
+  $('#amigosBtn').addEventListener('click',()=>openAmigos());
+  function generateFriendCode(){
+    let code=store.get('obito_friend_code',null);
+    if(!code){code='OB-'+Math.random().toString(36).substr(2,6).toUpperCase();store.set('obito_friend_code',code);}
+    return code;
+  }
+  function openAmigos(){
+    const modal=$('#amigosModal');
+    modal.classList.remove('hidden');modal.classList.add('flex');
+    $('#friendCode').textContent=generateFriendCode();
+    renderFriends();
+  }
+  function renderFriends(){
+    const friends=store.get('obito_friends',[]);
+    const cont=$('#friendsList');
+    if(!friends.length){cont.innerHTML='<p class="text-center text-gray-500 py-4">No tienes amigos aún. Comparte tu código.</p>';return;}
+    cont.innerHTML=friends.map(f=>`<div class="flex items-center justify-between p-3 rounded-xl bg-white/5"><span class="text-sm font-bold">${Security.escapeHtml(f.code)}</span><button class="text-xs text-red-400 hover:text-red-300" data-remove="${f.code}">Eliminar</button></div>`).join('');
+    cont.querySelectorAll('[data-remove]').forEach(btn=>btn.addEventListener('click',()=>{
+      const friends=store.get('obito_friends',[]).filter(f=>f.code!==btn.dataset.remove);
+      store.set('obito_friends',friends);
+      renderFriends();
+      toast('Amigo eliminado');
+    }));
+  }
+  $('#copyFriendCode').addEventListener('click',async()=>{
+    try{await navigator.clipboard.writeText($('#friendCode').textContent);toast('📋 Código copiado');}
+    catch{toast('Copia el código manualmente');}
+  });
+  $('#addFriendBtn').addEventListener('click',()=>{
+    const input=$('#addFriendInput');
+    const code=input.value.trim().toUpperCase();
+    if(!code||code===generateFriendCode()){toast('Código inválido o es tu propio código');return;}
+    const friends=store.get('obito_friends',[]);
+    if(friends.some(f=>f.code===code)){toast('Ya eres amigo de esta persona');return;}
+    friends.push({code,ts:Date.now()});
+    store.set('obito_friends',friends);
+    input.value='';
+    renderFriends();
+    toast('✅ Amigo agregado');
+  });
+  $('#closeAmigos').addEventListener('click',()=>{$('#amigosModal').classList.add('hidden');$('#amigosModal').classList.remove('flex');});
+
+  document.querySelectorAll('[id$="Modal"]').forEach(modal=>{
+    modal.addEventListener('click',e=>{if(e.target===modal){modal.classList.add('hidden');modal.classList.remove('flex');}});
+  });
+
   $('#crumbHome').addEventListener('click',()=>goHash(''));
   $('#crumbCat').addEventListener('click',()=>{if(state.current)goHash('#cat-'+state.current.category);});
   $('#loadOpen').addEventListener('click',()=>{const u=stageState.currentUrl||(state.current&&state.current.play_url);if(u)window.open(u,'_blank','noopener');});
-  $('#failRetry').addEventListener('click',()=>{if(!soundOn){soundOn=true;refreshToolbar();clearOverlayBg();const fr=$('#failRetry');fr.textContent='Reintentar';loadSource(stageState.idx||0);}else loadSource(0);});
+  $('#failRetry').addEventListener('click',()=>{
+    if(globalMuted){globalMuted=false;soundOn=true;refreshToolbar();clearOverlayBg();const fr=$('#failRetry');fr.textContent='Reintentar';loadSource(stageState.idx||0);toast('🔊 Audio reactivado');}
+    else loadSource(0);
+  });
   $('#failOpen').addEventListener('click',()=>{const u=stageState.currentUrl||(state.current&&state.current.play_url);if(u)window.open(u,'_blank','noopener');});
+
   window.addEventListener('scroll',onScroll,{passive:true});
   new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting&&!$('#homeView').classList.contains('hidden'))fetchHomeBatch();});},{rootMargin:'900px 0px'}).observe($('#homeSentinel'));
   new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting&&!$('#browseView').classList.contains('hidden'))appendBrowse();});},{rootMargin:'700px 0px'}).observe($('#browseSentinel'));
