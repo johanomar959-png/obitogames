@@ -3,19 +3,46 @@ import zlib
 import os
 import re
 import json
+import secrets
 from urllib.parse import urljoin, urlparse
-from flask import Flask, render_template, jsonify, request, abort
+from flask import Flask, render_template, jsonify, request, abort, session, redirect, send_from_directory
 
 try:
-    import requests
+    import requests as http_requests
 except ImportError:
-    requests = None
+    http_requests = None
+
+try:
+    import jwt
+except ImportError:
+    jwt = None
 
 app = Flask(__name__)
 DB_FILE = "juegos.db"
 THUMB_DIR = os.path.join("static", "thumbs", "curated")
 
-MI_DOMINIO = ""  # pon tu dominio cuando lo tengas
+MI_DOMINIO = ""  # pon "obitogames.com" cuando lo tengas
+
+# ===== CREDENCIALES OAUTH =====
+GOOGLE_CLIENT_ID = ""
+FACEBOOK_APP_ID = ""
+FACEBOOK_APP_SECRET = ""
+APPLE_CLIENT_ID = ""
+
+# Clave de sesión persistente
+SECRET_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "secret_key.txt")
+def _load_secret():
+    env = os.environ.get("SECRET_KEY")
+    if env:
+        return env
+    if os.path.exists(SECRET_FILE):
+        with open(SECRET_FILE) as f:
+            return f.read().strip()
+    s = secrets.token_hex(32)
+    with open(SECRET_FILE, "w") as f:
+        f.write(s)
+    return s
+app.secret_key = _load_secret()
 
 MANUAL_PHOTOS = {
     "Smash Karts": "https://imgs.crazygames.com/smash-karts_16x9/20260210123937/smash-karts_16x9-cover?metadata=none&quality=100&width=1200&height=630&fit=crop",
@@ -140,13 +167,13 @@ _frame_cache = {}
 
 
 def fuente_embebible(url):
-    if not requests:
+    if not http_requests:
         return True
     if url in _frame_cache:
         return _frame_cache[url]
     ok = True
     try:
-        r = requests.get(url, headers=UA, timeout=10, stream=True)
+        r = http_requests.get(url, headers=UA, timeout=10, stream=True)
         xfo = (r.headers.get("X-Frame-Options") or "").strip().lower()
         csp = (r.headers.get("Content-Security-Policy") or "").lower()
         if xfo in ("deny", "sameorigin") or "frame-ancestors" in csp:
@@ -167,10 +194,10 @@ def orden_fuentes(curado, base_src):
 
 
 def descargar_imagen_directa(url, destino):
-    if not requests:
+    if not http_requests:
         return False
     try:
-        ri = requests.get(url, headers=UA, timeout=25)
+        ri = http_requests.get(url, headers=UA, timeout=25)
         if ri.status_code == 200 and len(ri.content) > 15000:
             with open(destino, "wb") as f:
                 f.write(ri.content)
@@ -181,10 +208,10 @@ def descargar_imagen_directa(url, destino):
 
 
 def descargar_og_image(url, destino):
-    if not requests:
+    if not http_requests:
         return False
     try:
-        r = requests.get(url, headers=UA, timeout=12, allow_redirects=True)
+        r = http_requests.get(url, headers=UA, timeout=12, allow_redirects=True)
         html = r.text[:400000]
         pats = [
             r'<meta[^>]+property=["\']og:image:secure_url["\'][^>]+content=["\']([^"\']+)["\']',
@@ -202,7 +229,7 @@ def descargar_og_image(url, destino):
         if not img:
             return False
         img = urljoin(url, img)
-        ri = requests.get(img, headers=UA, timeout=20)
+        ri = http_requests.get(img, headers=UA, timeout=20)
         ct = ri.headers.get("Content-Type", "")
         if ri.status_code == 200 and len(ri.content) > 15000 and ("image" in ct or img.endswith((".jpg", ".png", ".webp"))):
             with open(destino, "wb") as f:
@@ -400,18 +427,184 @@ def cargar_cache():
             stream.append(db_sorted[i]); i += 1
 
     _cache["db"], _cache["curated"], _cache["stream"], _cache["counts"], _cache["by_title"], _cache["ready"] = db, curated, stream, counts, by_title, True
-    print(f"✅ Caché lista: {len(stream)} juegos ligados ({len(cur_list)} oficiales + {len(db_sorted)} catálogo)")
+    print(f"✅ Caché lista: {len(stream)} juegos")
     return True
 
 
+# ===== TABLA DE USUARIOS =====
+def ensure_users():
+    conn = sqlite3.connect(DB_FILE)
+    conn.execute("""CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider TEXT NOT NULL, provider_id TEXT NOT NULL,
+        email TEXT, name TEXT, avatar TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(provider, provider_id))""")
+    conn.commit()
+    conn.close()
+
+
+def upsert_user(provider, pid, email, name, avatar):
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT * FROM users WHERE provider=? AND provider_id=?", (provider, pid)).fetchone()
+    if row:
+        conn.execute("UPDATE users SET email=?, name=?, avatar=? WHERE id=?", (email, name, avatar, row["id"]))
+        uid = row["id"]
+        conn.commit()
+    else:
+        cur = conn.execute("INSERT INTO users (provider,provider_id,email,name,avatar) VALUES (?,?,?,?,?)",
+                           (provider, pid, email, name, avatar))
+        uid = cur.lastrowid
+        conn.commit()
+    conn.close()
+    return {"id": uid, "provider": provider, "email": email, "name": name, "avatar": avatar}
+
+
+def verify_google(credential):
+    if not http_requests:
+        return None
+    try:
+        r = http_requests.get("https://oauth2.googleapis.com/tokeninfo", params={"id_token": credential}, timeout=10).json()
+        if GOOGLE_CLIENT_ID and r.get("aud") != GOOGLE_CLIENT_ID:
+            return None
+        if "sub" not in r:
+            return None
+        return r
+    except Exception:
+        return None
+
+
+def verify_facebook(token):
+    if not http_requests:
+        return None
+    try:
+        if FACEBOOK_APP_SECRET:
+            app_token = f"{FACEBOOK_APP_ID}|{FACEBOOK_APP_SECRET}"
+            dbg = http_requests.get("https://graph.facebook.com/debug_token",
+                               params={"input_token": token, "access_token": app_token}, timeout=10).json()
+            if not dbg.get("data", {}).get("is_valid"):
+                return None
+            if FACEBOOK_APP_ID and dbg["data"].get("app_id") != FACEBOOK_APP_ID:
+                return None
+        me = http_requests.get("https://graph.facebook.com/me",
+                          params={"fields": "id,name,email,picture", "access_token": token}, timeout=10).json()
+        if "id" not in me:
+            return None
+        return me
+    except Exception:
+        return None
+
+
+def verify_apple_id_token(token):
+    if not jwt or not http_requests:
+        return None
+    try:
+        headers = jwt.get_unverified_header(token)
+        keys = http_requests.get("https://appleid.apple.com/auth/keys", timeout=10).json()["keys"]
+        key = next((k for k in keys if k["kid"] == headers.get("kid")), None)
+        if not key:
+            return None
+        pub = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
+        payload = jwt.decode(token, pub, algorithms=["RS256"],
+                             audience=APPLE_CLIENT_ID or None,
+                             options={"verify_aud": bool(APPLE_CLIENT_ID)})
+        if payload.get("iss") != "https://appleid.apple.com":
+            return None
+        return payload
+    except Exception:
+        return None
+
+
+# ===== RUTAS =====
 @app.route('/')
 def home():
     return render_template('index.html')
 
 
+@app.route('/ads.txt')
+def ads_txt():
+    ads_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ads.txt")
+    if os.path.exists(ads_path):
+        with open(ads_path, 'r') as f:
+            return f.read(), 200, {"Content-Type": "text/plain"}
+    abort(404)
+
+
 @app.route('/robots.txt')
 def robots():
     return "User-agent: *\nAllow: /\n", 200, {"Content-Type": "text/plain"}
+
+
+@app.route('/api/config')
+def api_config():
+    return jsonify({"google": GOOGLE_CLIENT_ID, "facebook": FACEBOOK_APP_ID, "apple": APPLE_CLIENT_ID})
+
+
+@app.route('/auth/google', methods=['POST'])
+def auth_google():
+    cred = (request.json or {}).get("credential", "")
+    info = verify_google(cred)
+    if not info:
+        return jsonify({"ok": False, "error": "Token de Google inválido"})
+    user = upsert_user("google", info.get("sub"), info.get("email"), info.get("name"), info.get("picture"))
+    session["user"] = user
+    return jsonify({"ok": True, "user": user})
+
+
+@app.route('/auth/facebook', methods=['POST'])
+def auth_facebook():
+    tok = (request.json or {}).get("access_token", "")
+    me = verify_facebook(tok)
+    if not me:
+        return jsonify({"ok": False, "error": "Token de Facebook inválido"})
+    pic = me.get("picture", {}).get("data", {}).get("url")
+    user = upsert_user("facebook", me.get("id"), me.get("email"), me.get("name"), pic)
+    session["user"] = user
+    return jsonify({"ok": True, "user": user})
+
+
+@app.route('/auth/apple/callback', methods=['POST'])
+def auth_apple_callback():
+    id_token = request.form.get("id_token") or ""
+    payload = verify_apple_id_token(id_token)
+    if not payload:
+        return "Apple login inválido", 400
+    email = payload.get("email")
+    name = email.split("@")[0] if email else "Usuario Apple"
+    user_json = request.form.get("user")
+    if user_json:
+        try:
+            nj = json.loads(user_json)
+            nm = nj.get("name", {})
+            if nm:
+                name = (nm.get("firstName", "") + " " + nm.get("lastName", "")).strip() or name
+        except Exception:
+            pass
+    user = upsert_user("apple", payload.get("sub"), email, name, None)
+    session["user"] = user
+    return redirect("/")
+
+
+@app.route('/auth/email', methods=['POST'])
+def auth_email():
+    email = (request.json or {}).get("email", "").strip().lower()
+    if "@" not in email:
+        return jsonify({"ok": False, "error": "Correo inválido"})
+    user = upsert_user("email", email, email, email.split("@")[0], None)
+    session["user"] = user
+    return jsonify({"ok": True, "user": user})
+
+
+@app.route('/auth/me')
+def auth_me():
+    return jsonify({"user": session.get("user")})
+
+
+@app.route('/auth/logout', methods=['POST'])
+def auth_logout():
+    session.pop("user", None)
+    return jsonify({"ok": True})
 
 
 @app.route('/api/games')
@@ -480,11 +673,11 @@ def health():
 
 @app.route('/px/<path:target>')
 def proxy_juego(target):
-    if not requests:
+    if not http_requests:
         abort(502)
     url = target if target.startswith("http") else "https://" + target
     try:
-        r = requests.get(url, headers=UA, timeout=15)
+        r = http_requests.get(url, headers=UA, timeout=15)
     except Exception:
         abort(502)
     html = r.text
@@ -500,8 +693,8 @@ def proxy_juego(target):
     return resp
 
 
-# Precarga para servidores de producción (gunicorn/Render)
 try:
+    ensure_users()
     cargar_cache()
 except Exception as _e:
     print("prewarm skip:", _e)
@@ -511,6 +704,6 @@ DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"
 
 if __name__ == '__main__':
     print("=" * 60)
-    print(f"📂 Carpeta: {os.getcwd()} | BD existe: {os.path.exists(DB_FILE)} | Puerto: {PORT}")
+    print(f"📂 Carpeta: {os.getcwd()} | Puerto: {PORT}")
     print("=" * 60)
     app.run(host="0.0.0.0", port=PORT, debug=DEBUG)
