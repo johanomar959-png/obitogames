@@ -15,7 +15,7 @@ app = Flask(__name__)
 DB_FILE = "juegos.db"
 THUMB_DIR = os.path.join("static", "thumbs", "curated")
 
-MI_DOMINIO = ""  # pon "obitogames.onrender.com" o tu dominio cuando lo tengas
+MI_DOMINIO = ""  # pon tu dominio cuando lo tengas
 
 MANUAL_PHOTOS = {
     "Smash Karts": "https://imgs.crazygames.com/smash-karts_16x9/20260210123937/smash-karts_16x9-cover?metadata=none&quality=100&width=1200&height=630&fit=crop",
@@ -111,7 +111,6 @@ CURATED_RAW = [
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0 Safari/537.36",
       "Accept": "application/json"}
 
-# ===== SCRIPT DE CONTROL DE AUDIO (se inyecta en juegos vía proxy) =====
 MUTE_SCRIPT = """<script id="obito-audio-control">
 (function(){
   var muted=false, medias=[], gains=[];
@@ -135,6 +134,36 @@ MUTE_SCRIPT = """<script id="obito-audio-control">
 
 def con_proxy(u):
     return f"/px/{u}" if u and u.startswith("http") else u
+
+
+_frame_cache = {}
+
+
+def fuente_embebible(url):
+    if not requests:
+        return True
+    if url in _frame_cache:
+        return _frame_cache[url]
+    ok = True
+    try:
+        r = requests.get(url, headers=UA, timeout=10, stream=True)
+        xfo = (r.headers.get("X-Frame-Options") or "").strip().lower()
+        csp = (r.headers.get("Content-Security-Policy") or "").lower()
+        if xfo in ("deny", "sameorigin") or "frame-ancestors" in csp:
+            ok = False
+        r.close()
+    except Exception:
+        ok = True
+    _frame_cache[url] = ok
+    return ok
+
+
+def orden_fuentes(curado, base_src):
+    if not base_src:
+        return []
+    if curado and not fuente_embebible(base_src[0]):
+        return [con_proxy(base_src[0])] + base_src[1:]
+    return base_src + [con_proxy(base_src[0])]
 
 
 def descargar_imagen_directa(url, destino):
@@ -228,9 +257,7 @@ CURATED = []
 for i, (t, tag, cat, em, sources, pl, lk) in enumerate(CURATED_RAW, start=1):
     if f"c{i}" not in _ok:
         continue
-    full = [con_proxy(s) for s in sources] + list(sources)
-    seen = set()
-    full = [x for x in full if not (x in seen or seen.add(x))]
+    full = orden_fuentes(True, sources)
     CURATED.append({
         "id": f"c{i}", "title": t, "tag": tag, "category": cat, "emoji": em,
         "gradient": GRADIENTS.get(cat, "from-zinc-800 to-black"),
@@ -318,10 +345,8 @@ def cargar_cache():
         gid = str(r["id"])
         imagen = (r["imagen_url"] or "").strip()
         if (r["fuente"] or "") == "curado":
-            raw = [s for s in (r["sources"] or "").split("|") if s] or [r["iframe_url"]]
-            full = [con_proxy(s) for s in raw if s.startswith("http")] + [s for s in raw if s.startswith("http")]
-            seen = set()
-            full = [x for x in full if not (x in seen or seen.add(x))]
+            raw = [s for s in (r["sources"] or "").split("|") if s and not s.startswith("/px/")] or [r["iframe_url"]]
+            full = orden_fuentes(True, [s for s in raw if s and s.startswith("http")])
             base = next((c for c in CURATED if c["id"] == gid), None)
             g = {
                 "id": gid, "title": r["titulo"], "category": r["categoria"], "tag": r["tag"],
@@ -329,7 +354,7 @@ def cargar_cache():
                 "gradient": GRADIENTS.get(r["categoria"], "from-zinc-800 to-black"),
                 "logo": imagen or None, "sources": full,
                 "embed_url": full[0] if full else None,
-                "play_url": next((s for s in raw if s.startswith("http")), None),
+                "play_url": next((s for s in raw if s and s.startswith("http")), None),
                 "active_players": base["active_players"] if base else 1000,
                 "likes": base["likes"] if base else 1000,
                 "sections": [], "desc": r["descripcion"] or "", "blocked": False,
@@ -344,9 +369,7 @@ def cargar_cache():
                     imagen = f"https://img.gamedistribution.com/{gid}.jpg"
             slug = mapear_categoria(r["categoria"])
             base_src = construir_fuentes(gid, r["iframe_url"])
-            full = [con_proxy(s) for s in base_src] + base_src
-            seen = set()
-            full = [x for x in full if not (x in seen or seen.add(x))]
+            full = orden_fuentes(False, base_src)
             g = {
                 "id": len(db) + 1, "gd_id": gid, "title": r["titulo"] or "Sin título",
                 "category": slug, "emoji": EMOJIS.get(slug, "🎮"),
@@ -384,6 +407,11 @@ def cargar_cache():
 @app.route('/')
 def home():
     return render_template('index.html')
+
+
+@app.route('/robots.txt')
+def robots():
+    return "User-agent: *\nAllow: /\n", 200, {"Content-Type": "text/plain"}
 
 
 @app.route('/api/games')
@@ -452,12 +480,11 @@ def health():
 
 @app.route('/px/<path:target>')
 def proxy_juego(target):
-    """Proxy de documento: quita bloqueos de marco, fija <base> e inyecta control de audio."""
     if not requests:
         abort(502)
     url = target if target.startswith("http") else "https://" + target
     try:
-        r = requests.get(url, headers=UA, timeout=25)
+        r = requests.get(url, headers=UA, timeout=15)
     except Exception:
         abort(502)
     html = r.text
@@ -473,9 +500,17 @@ def proxy_juego(target):
     return resp
 
 
+# Precarga para servidores de producción (gunicorn/Render)
+try:
+    cargar_cache()
+except Exception as _e:
+    print("prewarm skip:", _e)
+
+PORT = int(os.environ.get("PORT", "5000"))
+DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"
+
 if __name__ == '__main__':
     print("=" * 60)
-    print(f"📂 Carpeta: {os.getcwd()} | BD existe: {os.path.exists(DB_FILE)}")
+    print(f"📂 Carpeta: {os.getcwd()} | BD existe: {os.path.exists(DB_FILE)} | Puerto: {PORT}")
     print("=" * 60)
-    cargar_cache()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(host="0.0.0.0", port=PORT, debug=DEBUG)
