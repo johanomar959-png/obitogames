@@ -158,7 +158,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
           <button id="favBtn" class="tool-btn" title="Guardar en Mis Juegos"></button>
           <button id="comBtn" class="tool-btn" title="Comentarios"></button>
           <button id="shareBtn" class="tool-btn" title="Compartir"></button>
-          <button id="soundBtn" class="tool-btn" title="Silenciar / reanudar"></button>
+          <button id="soundBtn" class="tool-btn" title="Silenciar / activar sonido"></button>
           <button id="reportBtn" class="tool-btn" title="Reportar"></button>
           <button id="tabBtn" class="tool-btn" title="Abrir en pestaña nueva"></button>
           <button id="fsBtn" class="tool-btn" title="Pantalla completa"></button>
@@ -199,14 +199,14 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
   </div>
 </div>
 
-<!-- ===== MODAL: LOGIN ===== -->
+<!-- ===== MODAL: LOGIN (estilo CrazyGames) ===== -->
 <div id="loginModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black/70 p-4">
-  <div class="glass w-full max-w-sm rounded-2xl p-6">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-extrabold">Conectarse o registrarse</h2>
-      <button id="closeLogin" class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-xl">✕</button>
+  <div class="glass w-full max-w-sm rounded-2xl p-6 flex flex-col gap-4 max-h-[92vh] overflow-y-auto">
+    <div class="flex justify-end">
+      <button id="closeLogin" class="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center text-xl">✕</button>
     </div>
     <div id="loginForm" class="space-y-3">
+      <h2 class="text-xl font-extrabold text-center mb-1">Conectarse o registrarse</h2>
       <button class="social-login w-full py-3 rounded-xl bg-white text-gray-900 font-bold flex items-center justify-center gap-2 hover:bg-gray-100 transition" data-provider="google">
         <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
         Acceder con Google
@@ -219,16 +219,36 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74 1.18 0 2.45-1.02 4.11-.87 3.05.26 4.72 2.08 5.26 3.09-4.35 2.58-3.69 8.38.69 10.25-.98 2.35-2.35 4.69-4.14 4.76zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
         Continuar con Apple
       </button>
-      <div class="relative my-4">
-        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-red-900/30"></div></div>
-        <div class="relative flex justify-center text-xs"><span class="bg-[#120a0b] px-2 text-gray-500">O</span></div>
+      <div class="relative my-2">
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-white/10"></div></div>
+        <div class="relative flex justify-center text-xs"><span class="bg-[#120a0b] px-2 text-gray-400 font-bold">O</span></div>
       </div>
       <input id="loginEmail" type="email" placeholder="Introduce tu dirección de correo electrónico" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-red-900/40 text-sm focus:outline-none focus:border-red-500">
-      <button id="loginEmailBtn" class="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 font-bold transition opacity-50 cursor-not-allowed" disabled>Continúa</button>
+      <button id="loginEmailBtn" class="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 font-bold transition opacity-50 cursor-not-allowed" disabled>Continúa en <span class="font-extrabold">Obito Games</span></button>
     </div>
-    <div id="userInfo" class="hidden mt-4 p-4 rounded-xl bg-white/5">
-      <p class="text-sm text-gray-300">Sesión iniciada como: <span id="userEmail" class="font-bold text-white"></span></p>
-      <button id="logoutBtn" class="mt-2 text-xs text-red-400 hover:text-red-300">Cerrar sesión</button>
+    <div id="userInfo" class="hidden p-4 rounded-xl bg-white/5 text-center">
+      <p class="text-sm text-gray-300">Sesión iniciada como:</p>
+      <p id="userEmail" class="font-bold text-white mt-1 break-all"></p>
+      <button id="logoutBtn" class="mt-3 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-xs font-bold">Cerrar sesión</button>
+    </div>
+    <div class="border-t border-white/10 pt-4">
+      <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 text-xs font-bold mb-3">🌐 Español</span>
+      <div class="flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-400 font-medium">
+        <a href="#" class="hover:text-white">Acerca de</a>
+        <a href="#" class="hover:text-white">Sitio para niños</a>
+        <a href="#" class="hover:text-white">Términos y Condiciones</a>
+        <a href="#" class="hover:text-white">Empleo</a>
+        <a href="#" class="hover:text-white">Privacidad</a>
+        <a href="#" class="hover:text-white">Desarrolladores de Juegos</a>
+        <a href="#" class="hover:text-white">Todos los juegos</a>
+      </div>
+      <div class="flex gap-4 mt-4 text-gray-500">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.78 0 2.89 2.89 0 0 1 5.78-.21V12.1a6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 12.68 0V9.83a8.2 8.2 0 0 0 4.88 1.6V8a4.85 4.85 0 0 1-3.99-1.31z"/></svg>
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.38.5A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.5 9.38.5 9.38.5s7.5 0 9.38-.5a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81zM9.55 15.57V8.43L15.82 12l-6.27 3.57z"/></svg>
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74 1.18 0 2.45-1.02 4.11-.87 3.05.26 4.72 2.08 5.26 3.09-4.35 2.58-3.69 8.38.69 10.25-.98 2.35-2.35 4.69-4.14 4.76zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.32 4.37a19.8 19.8 0 0 0-4.93-1.51 13.78 13.78 0 0 0-.64 1.28 18.27 18.27 0 0 0-5.5 0 12.64 12.64 0 0 0-.64-1.28 19.74 19.74 0 0 0-4.93 1.51C.53 9.05-.32 13.58.1 18.06a19.9 19.9 0 0 0 6.02 3.03 14.5 14.5 0 0 0 1.29-2.09 12.75 12.75 0 0 1-1.93-.92c.16-.12.32-.24.47-.37a14.2 14.2 0 0 0 12.1 0c.15.13.31.25.47.37-.62.36-1.27.67-1.93.92a14.5 14.5 0 0 0 1.29 2.09 19.84 19.84 0 0 0 6.02-3.03c.5-5.18-.84-9.68-3.58-13.69zM8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42s.95-2.42 2.16-2.42 2.18 1.08 2.16 2.42c0 1.34-.95 2.42-2.16 2.42zm7.96 0c-1.18 0-2.16-1.08-2.16-2.42s.95-2.42 2.16-2.42 2.18 1.08 2.16 2.42c0 1.34-.95 2.42-2.16 2.42z"/></svg>
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05a3.74 3.74 0 0 1 3.37-1.85c3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.55C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.72C24 .77 23.2 0 22.22 0z"/></svg>
+      </div>
     </div>
   </div>
 </div>
@@ -292,7 +312,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
 const PERF={DEBOUNCE_SEARCH:250};
 const ADS={client:"",slots:{stage:"",rail:"",home:"",info:""}};
 const $=s=>document.querySelector(s);
-const state={category:null,search:'',current:null,view:'home'};
+const state={category:null,search:'',current:null,view:'home',muted:false};
 let CATS=[],CUR=[],lastRoute=null,sidebarOpen=false;
 const seenGames=new Map();
 let homeOffset=0,homeTotal=0,homeLoading=false,homeDone=false;
@@ -300,7 +320,7 @@ let browseOffset=0,browseTotal=0,browseLoading=false,browseParams={};
 let railQueue=[],railShown=0,railCounter=0;
 const CHUNK=50, HOME_BATCH=100, BROWSE_CHUNK=40, MAX_ROWS=30, RAIL_SIZE=40;
 let stageState={sources:[],idx:0,alts:[],timer:null,tick:null,currentUrl:null};
-let soundOn=true, globalMuted=false, dbRowsCreated=0, bandsQueue=[];
+let soundOn=true, dbRowsCreated=0, bandsQueue=[];
 
 const ROW_NAMES=['Joyas ocultas de la comunidad','Recién llegados al arcade','Para maratonear esta noche','Reto aceptado: supera tu récord','Modo relajado: juega sin prisa','Velocidad máxima y reflejos','Píxeles, nostalgia y gloria','Caos divertido garantizado','Épicos, gigantes y legendarios','Secretos mejor guardados','Fiebre de fin de semana','Nivel experto: entra si puedes'];
 
@@ -662,7 +682,27 @@ function clearOverlayBg(){const ov=$('#stageOverlay');if(ov)ov.style.backgroundI
 function stageShow(msg,showFail){const ov=$('#stageOverlay');if(!ov)return;ov.classList.remove('hidden');ov.classList.add('flex');const m=$('#stageMsg');if(m)m.textContent=msg;const sp=$('#stageSpinner');if(sp)sp.classList.toggle('hidden',!!showFail);const f=$('#stageFail');if(f)f.classList.toggle('hidden',!showFail);}
 function stageHide(){clearTimeout(stageState.timer);clearInterval(stageState.tick);const ov=$('#stageOverlay');if(!ov)return;ov.classList.add('hidden');ov.classList.remove('flex');}
 window.__stageLoaded=function(){stageHide();};
-function mountIframe(url){clearOverlayBg();stageState.currentUrl=url;$('#stageWrap').innerHTML=`<iframe class="absolute inset-0 w-full h-full border-0 bg-black" src="${url}" allow="fullscreen; autoplay; gamepad; clipboard-write; magnetometer; gyroscope; accelerometer; payment; picture-in-picture" allowfullscreen onload="try{window.__stageLoaded()}catch(e){}"></iframe>`;}
+
+/* ===== MUTE REAL: el juego sigue corriendo, solo se silencia ===== */
+function setGameMuted(m){
+  const fr=document.querySelector('#stageWrap iframe');
+  if(!fr)return false;
+  try{
+    if(fr.contentWindow&&typeof fr.contentWindow.__obitoSetMuted==='function'){
+      fr.contentWindow.__obitoSetMuted(m);
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+function applyMuted(){ if(state.current) setGameMuted(state.muted); }
+
+function mountIframe(url){
+  clearOverlayBg();stageState.currentUrl=url;
+  $('#stageWrap').innerHTML=`<iframe class="absolute inset-0 w-full h-full border-0 bg-black" src="${url}" allow="fullscreen; autoplay; gamepad; clipboard-write; magnetometer; gyroscope; accelerometer; payment; picture-in-picture" allowfullscreen onload="try{window.__stageLoaded()}catch(e){}"></iframe>`;
+  setTimeout(applyMuted,600);
+  setTimeout(applyMuted,2500);
+}
 function loadSource(i){
   clearTimeout(stageState.timer);clearInterval(stageState.tick);
   if(i>=stageState.sources.length){cycleSource();return;}
@@ -709,7 +749,7 @@ function applyOrientation(){
 }
 
 function showLauncher(g){
-  state.current=g;soundOn=true;
+  state.current=g;soundOn=true;state.muted=false;
   showView('game');
   stopStage();clearOverlayBg();stageHide();
   const logo=logoURL(g)||'';
@@ -772,7 +812,7 @@ function showView(n){
     stopStage();clearOverlayBg();
     const h=$('#rotateHint');if(h)h.classList.add('hidden');
     const b=$('#stageBox');if(b){b.classList.remove('stage-portrait');b.classList.remove('stage-tall');}
-    if(globalMuted){globalMuted=false;soundOn=true;refreshToolbar();}
+    state.muted=false;soundOn=true;
   }
   state.view=n;
   $('#homeView').classList.toggle('hidden',n!=='home');
@@ -792,12 +832,12 @@ async function openGame(id){
   }
   const sources=(g.sources||[]).map(u=>u&&u.startsWith('/')?u:Security.sanitizeUrl(u)).filter(Boolean);
   if(!sources.length||g.blocked){showLauncher(g);return;}
-  state.current=g;soundOn=true;
+  state.current=g;soundOn=true;state.muted=false;
   showView('game');
 
   const rec=store.get('obito_recent_games',[]);
   const mini={id:g.id,title:g.title,emoji:g.emoji,gradient:g.gradient,logo:g.logo,category:g.category,embed_url:sources[0],play_url:g.play_url,active_players:g.active_players};
-  const ix=rec.findIndex(r=>r.id===g.id);if(ix>-1)rec.splice(ix,1);
+  const ix=rec.findIndex(r=>String(r.id)===String(g.id));if(ix>-1)rec.splice(ix,1);
   rec.unshift(mini);store.set('obito_recent_games',rec.slice(0,12));
 
   stageState.sources=sources;
@@ -814,10 +854,36 @@ function refreshToolbar(){
   $('#favBtn').innerHTML=icon('bookmark','w-4 h-4',!!favsMap[g.id]);$('#favBtn').classList.toggle('on',!!favsMap[g.id]);
   $('#comBtn').innerHTML=icon('comment','w-4 h-4');
   $('#shareBtn').innerHTML=icon('share','w-4 h-4');
-  $('#soundBtn').innerHTML=icon(soundOn?'volume':'volumeX','w-4 h-4');$('#soundBtn').classList.toggle('on',!soundOn);
+  $('#soundBtn').innerHTML=icon(state.muted?'volumeX':'volume','w-4 h-4');$('#soundBtn').classList.toggle('on',state.muted);
   $('#reportBtn').innerHTML=icon('flag','w-4 h-4');
   $('#tabBtn').innerHTML=icon('external','w-4 h-4');
   $('#fsBtn').innerHTML=icon('maximize','w-4 h-4');
+}
+
+/* ===== SESIÓN DE USUARIO ===== */
+function updateUserUI(){
+  const user=store.get('obito_user',null);
+  const btn=$('#loginBtn');
+  if(user&&user.email){btn.textContent='👤 '+user.email.split('@')[0];}
+  else{btn.textContent='Iniciar sesión';}
+}
+function doLogin(email,provider){
+  store.set('obito_user',{email,provider:provider||'email',ts:Date.now()});
+  updateUserUI();
+  const modal=$('#loginModal');
+  $('#loginForm').classList.add('hidden');
+  $('#userInfo').classList.remove('hidden');
+  $('#userEmail').textContent=email;
+  toast('✅ Sesión iniciada como '+email);
+}
+function doLogout(){
+  store.set('obito_user',null);
+  updateUserUI();
+  $('#userInfo').classList.add('hidden');
+  $('#loginForm').classList.remove('hidden');
+  $('#loginEmail').value='';
+  const b=$('#loginEmailBtn');b.disabled=true;b.classList.add('opacity-50','cursor-not-allowed');
+  toast('👋 Sesión cerrada');
 }
 
 function renderSidebar(cats){
@@ -876,6 +942,7 @@ function bindEvents(){
   $('#searchInput').addEventListener('input',e=>debouncedSearch(e.target.value));
   const hb=document.querySelector('header [data-nav="home"]');if(hb)hb.addEventListener('click',()=>goHash(''));
 
+  /* ===== LIKE / DISLIKE / GUARDAR ===== */
   $('#likeBtn').addEventListener('click',()=>{
     const g=state.current;if(!g)return;
     likesMap[g.id]=!likesMap[g.id];
@@ -883,13 +950,11 @@ function bindEvents(){
     refreshToolbar();
     toast(likesMap[g.id]?'👍 ¡Te gusta este juego!':'Like retirado');
   });
-
   $('#dislikeBtn').addEventListener('click',()=>{
     const g=state.current;if(!g)return;
     if(likesMap[g.id]){delete likesMap[g.id];store.set('obito_likes',likesMap);refreshToolbar();}
     toast('😕 Tomamos nota. Te recomendaremos otros juegos.');
   });
-
   $('#favBtn').addEventListener('click',()=>{
     const g=state.current;if(!g)return;
     favsMap[g.id]=!favsMap[g.id];
@@ -898,28 +963,47 @@ function bindEvents(){
     toast(favsMap[g.id]?'🔖 Guardado en Mis Juegos':'Eliminado de Mis Juegos');
   });
 
-  $('#misJuegosBtn').addEventListener('click',()=>openMisJuegos());
-  function openMisJuegos(tab='guardados'){
+  /* ===== MIS JUEGOS ===== */
+  $('#misJuegosBtn').addEventListener('click',()=>openMisJuegos('guardados'));
+  function openMisJuegos(tab){
     const modal=$('#misJuegosModal');
     modal.classList.remove('hidden');modal.classList.add('flex');
-    renderMisJuegos(tab);
-    document.querySelectorAll('.tab-btn').forEach(b=>{
-      b.classList.toggle('active',b.dataset.tab===tab);
-      b.onclick=()=>renderMisJuegos(b.dataset.tab);
+    renderMisJuegos(tab||'guardados');
+  }
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      renderMisJuegos(b.dataset.tab);
     });
+  });
+  function findGame(id){
+    const sid=String(id);
+    return seenGames.get(sid)||seenGames.get(id)||CUR.find(g=>String(g.id)===sid)||null;
   }
   function renderMisJuegos(tab){
     const cont=$('#misJuegosContent');
-    let games=[];
-    if(tab==='guardados')games=Object.keys(favsMap).filter(id=>favsMap[id]).map(id=>seenGames.get(id)||CUR.find(g=>String(g.id)===String(id))).filter(Boolean);
-    else if(tab==='recientes')games=(store.get('obito_recent_games',[])||[]).map(g=>seenGames.get(String(g.id))||g).filter(Boolean);
-    else if(tab==='likes')games=Object.keys(likesMap).filter(id=>likesMap[id]).map(id=>seenGames.get(id)||CUR.find(g=>String(g.id)===String(id))).filter(Boolean);
-    if(!games.length){cont.innerHTML='<p class="text-center text-gray-500 py-8">No hay juegos aquí todavía.</p>';return;}
+    let list=[];
+    if(tab==='guardados')list=Object.keys(favsMap).filter(id=>favsMap[id]);
+    else if(tab==='likes')list=Object.keys(likesMap).filter(id=>likesMap[id]);
+    else list=(store.get('obito_recent_games',[])||[]).map(g=>g.id);
+    const games=list.map(id=>{
+      const g=findGame(id);
+      if(g)return g;
+      const r=(store.get('obito_recent_games',[])||[]).find(x=>String(x.id)===String(id));
+      return r||null;
+    }).filter(Boolean);
+    if(!games.length){
+      const msg=tab==='guardados'?'Aún no guardas juegos. Toca el marcador 🔖 en un juego para guardarlo.':tab==='likes'?'Aún no has dado "me gusta" a ningún juego.':'Aún no has jugado nada recientemente.';
+      cont.innerHTML=`<p class="text-center text-gray-500 py-8 text-sm">${msg}</p>`;
+      return;
+    }
     cont.innerHTML=games.map(g=>{
       const logo=logoURL(g);
       return `<div class="modal-game-item" data-play="${g.id}">
-        ${logo?`<img src="${logo}" class="modal-game-thumb">`:`<div class="modal-game-thumb bg-gradient-to-br ${g.gradient} flex items-center justify-center text-xl">${g.emoji}</div>`}
-        <div class="flex-1 min-w-0"><p class="font-bold text-sm truncate">${Security.escapeHtml(g.title)}</p><p class="text-xs text-gray-500">${g.active_players?g.active_players.toLocaleString('es')+' jugadores':''}</p></div>
+        ${logo?`<img src="${logo}" class="modal-game-thumb">`:`<div class="modal-game-thumb flex items-center justify-center text-xl">${Security.escapeHtml(g.emoji||'🎮')}</div>`}
+        <div class="flex-1 min-w-0"><p class="font-bold text-sm truncate">${Security.escapeHtml(g.title)}</p><p class="text-xs text-gray-500">${g.active_players?Number(g.active_players).toLocaleString('es')+' jugadores':''}</p></div>
+        <span class="text-red-400 text-xs font-bold">JUGAR ▶</span>
       </div>`;
     }).join('');
     cont.querySelectorAll('[data-play]').forEach(el=>el.addEventListener('click',()=>{
@@ -929,18 +1013,17 @@ function bindEvents(){
   }
   $('#closeMisJuegos').addEventListener('click',()=>{$('#misJuegosModal').classList.add('hidden');$('#misJuegosModal').classList.remove('flex');});
 
-  $('#comBtn').addEventListener('click',()=>openComentarios());
-  function openComentarios(){
-    const modal=$('#comentariosModal');
-    modal.classList.remove('hidden');modal.classList.add('flex');
+  /* ===== COMENTARIOS ===== */
+  $('#comBtn').addEventListener('click',()=>{
+    $('#comentariosModal').classList.remove('hidden');$('#comentariosModal').classList.add('flex');
     renderComentarios();
-  }
+  });
   function renderComentarios(){
     const g=state.current;if(!g)return;
     const key='obito_com_'+g.id;
     const coms=store.get(key,[]);
     const cont=$('#comentariosList');
-    if(!coms.length){cont.innerHTML='<p class="text-center text-gray-500 py-4">Sé el primero en comentar.</p>';return;}
+    if(!coms.length){cont.innerHTML='<p class="text-center text-gray-500 py-4 text-sm">Sé el primero en comentar.</p>';return;}
     cont.innerHTML=coms.map(c=>`<div class="p-3 rounded-xl bg-white/5"><p class="text-xs text-gray-500 mb-1">${new Date(c.ts).toLocaleString('es')}</p><p class="text-sm text-gray-200">${Security.escapeHtml(c.text)}</p></div>`).join('');
   }
   $('#enviarComentario').addEventListener('click',()=>{
@@ -958,41 +1041,28 @@ function bindEvents(){
   });
   $('#closeComentarios').addEventListener('click',()=>{$('#comentariosModal').classList.add('hidden');$('#comentariosModal').classList.remove('flex');});
 
+  /* ===== COMPARTIR ===== */
   $('#shareBtn').addEventListener('click',async()=>{
     const g=state.current;
     const url=location.href;
     const title=g?g.title+' - Obito Games':'Obito Games';
-    if(navigator.share){
-      try{await navigator.share({title,url});toast('🔗 Compartido');}catch{}
-    }else{
-      try{await navigator.clipboard.writeText(url);toast('🔗 Enlace copiado al portapapeles');}
-      catch{toast('Copia el enlace manualmente: '+url);}
-    }
+    if(navigator.share){try{await navigator.share({title,url});toast('🔗 Compartido');}catch{}}
+    else{try{await navigator.clipboard.writeText(url);toast('🔗 Enlace copiado al portapapeles');}catch{toast('Copia el enlace manualmente');}}
   });
 
+  /* ===== SONIDO: MUTE SIN PAUSA ===== */
   $('#soundBtn').addEventListener('click',()=>{
-    globalMuted=!globalMuted;
-    soundOn=!globalMuted;
+    state.muted=!state.muted;
+    soundOn=!state.muted;
+    const ok=setGameMuted(state.muted);
     refreshToolbar();
-    if(globalMuted){
-      stopStage();
-      const g=state.current;const logo=g&&g.logo?g.logo:'';
-      const ov=$('#stageOverlay');
-      if(ov&&logo)ov.style.backgroundImage=`linear-gradient(rgba(11,7,8,.88),rgba(11,7,8,.88)), url('${logo}')`;
-      stageShow('🔇 Silenciado — juego en pausa',true);
-      const fr=$('#failRetry');if(fr)fr.textContent='Reanudar con sonido';
-      toast('🔇 Audio silenciado hasta que vuelvas al inicio');
-    }else{
-      clearOverlayBg();
-      const fr=$('#failRetry');if(fr)fr.textContent='Reintentar';
-      loadSource(stageState.idx||0);
-      toast('🔊 Audio reactivado');
-    }
+    if(state.muted)toast(ok?'🔇 Sonido silenciado (el juego sigue corriendo)':'🔇 Silencio aplicado al navegador');
+    else toast(ok?'🔊 Sonido activado':'🔊 Sonido activado');
   });
 
+  /* ===== REPORTAR ===== */
   $('#reportBtn').addEventListener('click',()=>{
-    const modal=$('#reportarModal');
-    modal.classList.remove('hidden');modal.classList.add('flex');
+    $('#reportarModal').classList.remove('hidden');$('#reportarModal').classList.add('flex');
   });
   document.querySelectorAll('.report-reason').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -1002,6 +1072,7 @@ function bindEvents(){
   });
   $('#closeReportar').addEventListener('click',()=>{$('#reportarModal').classList.add('hidden');$('#reportarModal').classList.remove('flex');});
 
+  /* ===== PANTALLA COMPLETA ===== */
   $('#fsBtn').addEventListener('click',()=>{
     const box=$('#stageBox');
     if(!document.fullscreenElement){
@@ -1023,20 +1094,16 @@ function bindEvents(){
 
   $('#inviteBtn').addEventListener('click',async()=>{
     const url=location.href;
-    if(navigator.share){
-      try{await navigator.share({title:'Juega conmigo en Obito Games',url});toast('🔗 Invitación enviada');}catch{}
-    }else{
-      try{await navigator.clipboard.writeText(url);toast('🔗 Enlace copiado. ¡Compártelo con tus amigos!');}
-      catch{toast('Copia el enlace manualmente');}
-    }
+    if(navigator.share){try{await navigator.share({title:'Juega conmigo en Obito Games',url});toast('🔗 Invitación enviada');}catch{}}
+    else{try{await navigator.clipboard.writeText(url);toast('🔗 Enlace copiado. ¡Compártelo con tus amigos!');}catch{toast('Copia el enlace manualmente');}}
   });
 
-  $('#loginBtn').addEventListener('click',()=>openLogin());
-  function openLogin(){
+  /* ===== LOGIN ===== */
+  $('#loginBtn').addEventListener('click',()=>{
     const modal=$('#loginModal');
     modal.classList.remove('hidden');modal.classList.add('flex');
     const user=store.get('obito_user',null);
-    if(user){
+    if(user&&user.email){
       $('#userInfo').classList.remove('hidden');
       $('#userEmail').textContent=user.email;
       $('#loginForm').classList.add('hidden');
@@ -1044,63 +1111,46 @@ function bindEvents(){
       $('#userInfo').classList.add('hidden');
       $('#loginForm').classList.remove('hidden');
     }
-  }
+  });
   $('#loginEmail').addEventListener('input',e=>{
     const btn=$('#loginEmailBtn');
-    if(e.target.value.includes('@')){btn.disabled=false;btn.classList.remove('opacity-50','cursor-not-allowed');}
+    if(e.target.value.includes('@')&&e.target.value.includes('.')){btn.disabled=false;btn.classList.remove('opacity-50','cursor-not-allowed');}
     else{btn.disabled=true;btn.classList.add('opacity-50','cursor-not-allowed');}
   });
   $('#loginEmailBtn').addEventListener('click',()=>{
     const email=$('#loginEmail').value.trim();
     if(!email.includes('@'))return;
-    store.set('obito_user',{email,ts:Date.now()});
-    $('#userInfo').classList.remove('hidden');
-    $('#userEmail').textContent=email;
-    $('#loginForm').classList.add('hidden');
-    toast('✅ Sesión iniciada como '+email);
+    doLogin(email,'email');
   });
-  $('#logoutBtn').addEventListener('click',()=>{
-    store.set('obito_user',null);
-    $('#userInfo').classList.add('hidden');
-    $('#loginForm').classList.remove('hidden');
-    $('#loginEmail').value='';
-    $('#loginEmailBtn').disabled=true;
-    $('#loginEmailBtn').classList.add('opacity-50','cursor-not-allowed');
-    toast('👋 Sesión cerrada');
-  });
-  $('#closeLogin').addEventListener('click',()=>{$('#loginModal').classList.add('hidden');$('#loginModal').classList.remove('flex');});
   document.querySelectorAll('.social-login').forEach(btn=>{
     btn.addEventListener('click',()=>{
-      const provider=btn.dataset.provider;
-      const fakeEmail='usuario_'+Math.random().toString(36).substr(2,6)+'@'+provider+'.com';
-      store.set('obito_user',{email:fakeEmail,provider,ts:Date.now()});
-      $('#userInfo').classList.remove('hidden');
-      $('#userEmail').textContent=fakeEmail;
-      $('#loginForm').classList.add('hidden');
-      toast('✅ Sesión iniciada con '+provider.charAt(0).toUpperCase()+provider.slice(1));
+      const provider=btn.dataset.provider||'social';
+      const email='jugador_'+Math.random().toString(36).substr(2,6)+'@'+provider+'.com';
+      doLogin(email,provider);
     });
   });
+  $('#logoutBtn').addEventListener('click',doLogout);
+  $('#closeLogin').addEventListener('click',()=>{$('#loginModal').classList.add('hidden');$('#loginModal').classList.remove('flex');});
 
-  $('#amigosBtn').addEventListener('click',()=>openAmigos());
+  /* ===== AMIGOS ===== */
+  $('#amigosBtn').addEventListener('click',()=>{
+    $('#amigosModal').classList.remove('hidden');$('#amigosModal').classList.add('flex');
+    $('#friendCode').textContent=generateFriendCode();
+    renderFriends();
+  });
   function generateFriendCode(){
     let code=store.get('obito_friend_code',null);
     if(!code){code='OB-'+Math.random().toString(36).substr(2,6).toUpperCase();store.set('obito_friend_code',code);}
     return code;
   }
-  function openAmigos(){
-    const modal=$('#amigosModal');
-    modal.classList.remove('hidden');modal.classList.add('flex');
-    $('#friendCode').textContent=generateFriendCode();
-    renderFriends();
-  }
   function renderFriends(){
     const friends=store.get('obito_friends',[]);
     const cont=$('#friendsList');
-    if(!friends.length){cont.innerHTML='<p class="text-center text-gray-500 py-4">No tienes amigos aún. Comparte tu código.</p>';return;}
-    cont.innerHTML=friends.map(f=>`<div class="flex items-center justify-between p-3 rounded-xl bg-white/5"><span class="text-sm font-bold">${Security.escapeHtml(f.code)}</span><button class="text-xs text-red-400 hover:text-red-300" data-remove="${f.code}">Eliminar</button></div>`).join('');
+    if(!friends.length){cont.innerHTML='<p class="text-center text-gray-500 py-4 text-sm">No tienes amigos aún. Comparte tu código.</p>';return;}
+    cont.innerHTML=friends.map(f=>`<div class="flex items-center justify-between p-3 rounded-xl bg-white/5"><span class="text-sm font-bold">${Security.escapeHtml(f.code)}</span><button class="text-xs text-red-400 hover:text-red-300" data-remove="${Security.escapeHtml(f.code)}">Eliminar</button></div>`).join('');
     cont.querySelectorAll('[data-remove]').forEach(btn=>btn.addEventListener('click',()=>{
-      const friends=store.get('obito_friends',[]).filter(f=>f.code!==btn.dataset.remove);
-      store.set('obito_friends',friends);
+      const fr=store.get('obito_friends',[]).filter(f=>f.code!==btn.dataset.remove);
+      store.set('obito_friends',fr);
       renderFriends();
       toast('Amigo eliminado');
     }));
@@ -1123,6 +1173,7 @@ function bindEvents(){
   });
   $('#closeAmigos').addEventListener('click',()=>{$('#amigosModal').classList.add('hidden');$('#amigosModal').classList.remove('flex');});
 
+  /* ===== CERRAR MODALES CON CLICK FUERA ===== */
   document.querySelectorAll('[id$="Modal"]').forEach(modal=>{
     modal.addEventListener('click',e=>{if(e.target===modal){modal.classList.add('hidden');modal.classList.remove('flex');}});
   });
@@ -1130,10 +1181,7 @@ function bindEvents(){
   $('#crumbHome').addEventListener('click',()=>goHash(''));
   $('#crumbCat').addEventListener('click',()=>{if(state.current)goHash('#cat-'+state.current.category);});
   $('#loadOpen').addEventListener('click',()=>{const u=stageState.currentUrl||(state.current&&state.current.play_url);if(u)window.open(u,'_blank','noopener');});
-  $('#failRetry').addEventListener('click',()=>{
-    if(globalMuted){globalMuted=false;soundOn=true;refreshToolbar();clearOverlayBg();const fr=$('#failRetry');fr.textContent='Reintentar';loadSource(stageState.idx||0);toast('🔊 Audio reactivado');}
-    else loadSource(0);
-  });
+  $('#failRetry').addEventListener('click',()=>{loadSource(0);});
   $('#failOpen').addEventListener('click',()=>{const u=stageState.currentUrl||(state.current&&state.current.play_url);if(u)window.open(u,'_blank','noopener');});
 
   window.addEventListener('scroll',onScroll,{passive:true});
@@ -1147,6 +1195,7 @@ async function init(){
     const [catData,curData]=await Promise.all([api('/api/categories',{}),api('/api/curated',{})]);
     CATS=catData.categories||[];CUR=curData.games||[];
     renderSidebar(CATS);
+    updateUserUI();
     bindEvents();
     route();
   }catch(err){
