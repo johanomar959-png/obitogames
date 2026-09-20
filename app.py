@@ -5,8 +5,10 @@ import re
 import json
 import time
 import secrets
-from urllib.parse import urljoin, urlparse
-from flask import Flask, render_template, jsonify, request, abort, session, redirect
+from urllib.parse import urljoin, urlparse, urlencode
+from xml.sax.saxutils import escape as xml_escape
+import unicodedata
+from flask import Flask, render_template, jsonify, request, abort, session, redirect, Response
 
 try:
     import requests as http_requests
@@ -22,12 +24,12 @@ app = Flask(__name__)
 DB_FILE = "juegos.db"
 THUMB_DIR = os.path.join("static", "thumbs", "curated")
 
-MI_DOMINIO = ""
+MI_DOMINIO = os.environ.get("SITE_URL", "").strip().rstrip("/")
 
-GOOGLE_CLIENT_ID = ""
-FACEBOOK_APP_ID = ""
-FACEBOOK_APP_SECRET = ""
-APPLE_CLIENT_ID = ""
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+FACEBOOK_APP_ID = os.environ.get("FACEBOOK_APP_ID", "").strip()
+FACEBOOK_APP_SECRET = os.environ.get("FACEBOOK_APP_SECRET", "").strip()
+APPLE_CLIENT_ID = os.environ.get("APPLE_CLIENT_ID", "").strip()
 
 SECRET_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "secret_key.txt")
 def _load_secret():
@@ -137,21 +139,36 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0 Safa
 
 MUTE_SCRIPT = """<script id="obito-audio-control">
 (function(){
-  var muted=false, medias=[], gains=[];
-  function setMed(m){try{m.muted=muted;m.volume=muted?0:1;}catch(e){}}
-  var op=HTMLMediaElement.prototype.play;
-  HTMLMediaElement.prototype.play=function(){if(medias.indexOf(this)<0)medias.push(this);setMed(this);return op.apply(this,arguments);};
-  var AC=window.AudioContext||window.webkitAudioContext;
-  if(AC){
-    var dg=Object.getOwnPropertyDescriptor(AC.prototype,'destination');
-    if(dg&&dg.get){
-      Object.defineProperty(AC.prototype,'destination',{configurable:true,get:function(){
-        if(!this.__og){var g=this.createGain();g.gain.value=muted?0:1;g.connect(dg.get.call(this));this.__og=g;gains.push(g);}
-        return this.__og;
-      }});
-    }
+  var muted=false,medias=[],contexts=[];
+  function remember(m){
+    if(!m)return;if(medias.indexOf(m)<0)medias.push(m);
+    try{m.muted=muted;if(muted)m.volume=0;}catch(e){}
   }
-  window.__obitoSetMuted=function(m){muted=!!m;medias.forEach(setMed);gains.forEach(function(g){try{g.gain.value=muted?0:1;}catch(e){}});};
+  function scan(){try{document.querySelectorAll('audio,video').forEach(remember);}catch(e){}}
+  try{
+    var play=HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play=function(){remember(this);return play.apply(this,arguments);};
+  }catch(e){}
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if(AC){
+      var resume=AC.prototype.resume;
+      AC.prototype.resume=function(){var self=this;var p=resume.apply(this,arguments);try{if(contexts.indexOf(self)<0)contexts.push(self);}catch(e){};return p;};
+    }
+  }catch(e){}
+  function setMuted(v){
+    muted=!!v;scan();
+    medias.forEach(function(m){try{m.muted=muted;if(muted)m.volume=0;}catch(e){}});
+    contexts.forEach(function(ctx){try{if(muted&&ctx.state==='running')ctx.suspend();else if(!muted&&ctx.state==='suspended')ctx.resume();}catch(e){}});
+  }
+  window.__obitoSetMuted=setMuted;
+  window.addEventListener('message',function(ev){
+    var d=ev&&ev.data;if(d&&d.type==='OBITO_MUTE')setMuted(!!d.muted);
+  });
+  if('MutationObserver' in window){
+    try{new MutationObserver(function(){if(muted)scan();}).observe(document.documentElement,{childList:true,subtree:true});}catch(e){}
+  }
+  scan();
 })();
 </script>"""
 
@@ -342,7 +359,7 @@ for i, (t, tag, cat, em, sources, pl, lk) in enumerate(CURATED_RAW, start=1):
         "desc": f"{t} — juega gratis en Obito Games.",
     })
 
-_cache = {"db": [], "curated": {}, "stream": [], "counts": {}, "by_title": {}, "ready": False}
+_cache = {"db": [], "curated": {}, "stream": [], "counts": {}, "by_title": {}, "by_slug": {}, "ready": False}
 
 
 def mapear_categoria(raw):
@@ -356,6 +373,58 @@ def pseudo(seed, base, spread):
 
 def norm_title(t):
     return ''.join(ch for ch in (t or '').lower() if ch.isalnum())
+
+
+def slugify(text):
+    """Slug legible y seguro para URLs SEO."""
+    text = unicodedata.normalize("NFKD", str(text or ""))
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+    return text[:80] or "juego"
+
+
+def make_game_slug(title, stable_id):
+    seed = str(stable_id or title or "game")
+    suffix = f"{zlib.crc32(seed.encode('utf-8')) & 0xffffffff:08x}"
+    return f"{slugify(title)}-{suffix}"
+
+
+def parse_sources_value(value, fallback=""):
+    """Acepta sources antiguos separados por | y nuevos guardados como JSON."""
+    raw = str(value or "").strip()
+    out = []
+    if raw:
+        if raw.startswith("["):
+            try:
+                data = json.loads(raw)
+                if isinstance(data, list):
+                    out = [str(x).strip() for x in data if str(x).strip()]
+            except Exception:
+                out = []
+        if not out:
+            out = [x.strip() for x in raw.split("|") if x.strip()]
+    if not out and fallback:
+        out = [str(fallback).strip()]
+    return out
+
+
+def site_base_url():
+    return (MI_DOMINIO or request.url_root.rstrip("/")).rstrip("/")
+
+
+def render_spa(title=None, description=None, canonical=None, image=None, initial_hash=""):
+    return render_template(
+        "index.html",
+        seo_title=title or "Obito Games | Minijuegos Online Gratis",
+        seo_description=description or (
+            "Juega minijuegos online gratis en Obito Games. Descubre acción, arcade, "
+            "carreras, puzzles, deportes y mucho más directamente desde tu navegador."
+        ),
+        seo_canonical=canonical or (site_base_url() + "/"),
+        seo_image=image or (site_base_url() + "/static/logo.png"),
+        initial_hash=initial_hash or "",
+    )
 
 
 def construir_fuentes(gid, stored_url, fuente=None):
@@ -394,16 +463,10 @@ def construir_fuentes(gid, stored_url, fuente=None):
     # GAMEMONETIZE
     # =========================================================
     if source == "gamemonetize" or gid.startswith("gm_"):
+        # GameMonetize usa tokens de embed que NO siempre coinciden con
+        # el ID numérico del catálogo. La URL válida debe venir de la BD.
         if stored.startswith("http"):
             candidates.append(stored)
-
-        if gid.startswith("gm_"):
-            gm_id = gid[3:].strip()
-
-            if gm_id:
-                candidates.append(
-                    f"https://html5.gamemonetize.com/{gm_id}/"
-                )
 
     # =========================================================
     # ITCH.IO
@@ -431,15 +494,8 @@ def construir_fuentes(gid, stored_url, fuente=None):
     # =========================================================
     else:
         if gid.startswith("gm_"):
-            gm_id = gid[3:].strip()
-
             if stored.startswith("http"):
                 candidates.append(stored)
-
-            if gm_id:
-                candidates.append(
-                    f"https://html5.gamemonetize.com/{gm_id}/"
-                )
 
         elif gid.startswith("itch_"):
             if stored.startswith("http"):
@@ -489,7 +545,7 @@ def sync_curated():
     asegurar_columnas(conn)
     keep = [g["id"] for g in CURATED]
     marks = ",".join("?" for _ in keep) or "''"
-    conn.execute(f"DELETE FROM juegos WHERE fuente='curado' AND id NOT IN ({marks})", keep)
+    conn.execute(f"DELETE FROM juegos WHERE fuente='curado' AND id LIKE 'c%' AND id NOT IN ({marks})", keep)
     for g in CURATED:
         conn.execute("""INSERT INTO juegos (id,titulo,descripcion,categoria,imagen_url,iframe_url,tag,fuente,sources)
             VALUES (?,?,?,?,?,?,?,?,?)
@@ -517,12 +573,12 @@ def cargar_cache():
     conn.close()
     print(f"📚 Leyendo {len(rows)} juegos...")
 
-    db, curated, counts, by_title = [], {}, {}, {}
+    db, curated, counts, by_title, by_slug = [], {}, {}, {}, {}
     for r in rows:
         gid = str(r["id"])
         imagen = (r["imagen_url"] or "").strip()
         if (r["fuente"] or "") == "curado":
-            raw = [s for s in (r["sources"] or "").split("|") if s and not s.startswith("/px/")] or [r["iframe_url"]]
+            raw = [s for s in parse_sources_value(r["sources"], r["iframe_url"]) if s and not s.startswith("/px/")]
             full = orden_fuentes([s for s in raw if s and s.startswith("http")], check=True)
             base = next((c for c in CURATED if c["id"] == gid), None)
             g = {
@@ -537,7 +593,10 @@ def cargar_cache():
                 "sections": [], "desc": r["descripcion"] or "", "blocked": False,
                 "orientation": ORIENT_CURATED.get(r["titulo"], "horizontal" if mapear_categoria(r["categoria"]) in HORIZ_CATS else "auto"),
             }
+            g["seo_slug"] = make_game_slug(g["title"], gid)
+            g["seo_url"] = f"/juego/{g['seo_slug']}"
             curated[gid] = g
+            by_slug[g["seo_slug"]] = g
         else:
             if not imagen:
                 fuente_actual = str(r["fuente"] or "").strip().lower()
@@ -578,9 +637,12 @@ def cargar_cache():
                 "blocked": False,
                 "orientation": (r["orientacion"] if (has_orient and r["orientacion"]) else ("horizontal" if slug in HORIZ_CATS else "auto")),
             }
+            g["seo_slug"] = make_game_slug(g["title"], gid)
+            g["seo_url"] = f"/juego/{g['seo_slug']}"
             db.append(g)
         counts[g["category"]] = counts.get(g["category"], 0) + 1
         by_title.setdefault(norm_title(g["title"]), []).append(g)
+        by_slug[g["seo_slug"]] = g
 
     # ===== TENDENCIAS: GameMonetize populares primero, ligados con curados =====
     trending_ids = fetch_gamemonetize_trending()
@@ -604,7 +666,7 @@ def cargar_cache():
             top.append(cur_list[cj]); cj += 1
     stream = top + rest_games
 
-    _cache["db"], _cache["curated"], _cache["stream"], _cache["counts"], _cache["by_title"], _cache["ready"] = db, curated, stream, counts, by_title, True
+    _cache["db"], _cache["curated"], _cache["stream"], _cache["counts"], _cache["by_title"], _cache["by_slug"], _cache["ready"] = db, curated, stream, counts, by_title, by_slug, True
     print(f"✅ Caché lista: {len(stream)} juegos | {len(trend_games)} tendencias GM | {len(cur_list)} curados")
     return True
 
@@ -653,6 +715,23 @@ def verify_google(credential):
         return None
 
 
+def verify_google_access_token(token):
+    if not http_requests or not token:
+        return None
+    try:
+        r = http_requests.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10,
+        )
+        data = r.json()
+        if r.status_code != 200 or not data.get("sub"):
+            return None
+        return data
+    except Exception:
+        return None
+
+
 def verify_facebook(token):
     if not http_requests:
         return None
@@ -697,7 +776,66 @@ def verify_apple_id_token(token):
 # ===== RUTAS =====
 @app.route('/')
 def home():
-    return render_template('index.html')
+    base = site_base_url()
+    return render_spa(canonical=base + "/")
+
+
+@app.route('/categoria/<slug>')
+def category_page(slug):
+    if not cargar_cache():
+        abort(500)
+    cat = next((c for c in CATEGORIES_DEF if c["slug"] == slug), None)
+    if not cat:
+        abort(404)
+    count = _cache["counts"].get(slug, 0)
+    title = f"Minijuegos de {cat['name']} Online Gratis | Obito Games"
+    desc = (
+        f"Juega minijuegos de {cat['name'].lower()} online gratis en Obito Games. "
+        f"Explora {count} juegos disponibles directamente desde tu navegador."
+    )
+    return render_spa(
+        title=title,
+        description=desc,
+        canonical=site_base_url() + f"/categoria/{slug}",
+        initial_hash=f"#cat-{slug}",
+    )
+
+
+@app.route('/juego/<game_slug>')
+def game_page(game_slug):
+    if not cargar_cache():
+        abort(500)
+    g = _cache["by_slug"].get(game_slug)
+    if not g:
+        abort(404)
+    title = f"{g['title']} - Jugar Gratis Online | Obito Games"
+    desc = (g.get("desc") or f"Juega {g['title']} gratis online en Obito Games.")[:300]
+    image = g.get("logo") or (site_base_url() + "/static/logo.png")
+    if image and image.startswith("/"):
+        image = site_base_url() + image
+    return render_spa(
+        title=title,
+        description=desc,
+        canonical=site_base_url() + g["seo_url"],
+        image=image,
+        initial_hash=f"#juego-{g['id']}",
+    )
+
+
+@app.route('/sitemap.xml')
+def sitemap():
+    if not cargar_cache():
+        abort(500)
+    base = site_base_url()
+    urls = [base + "/"]
+    urls.extend(base + f"/categoria/{c['slug']}" for c in CATEGORIES_DEF if _cache["counts"].get(c["slug"]))
+    urls.extend(base + g["seo_url"] for g in _cache["stream"])
+    body = ['<?xml version="1.0" encoding="UTF-8"?>',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for u in urls:
+        body.append(f"<url><loc>{xml_escape(u)}</loc></url>")
+    body.append("</urlset>")
+    return Response("\n".join(body), mimetype="application/xml")
 
 
 @app.route('/ads.txt')
@@ -711,7 +849,15 @@ def ads_txt():
 
 @app.route('/robots.txt')
 def robots():
-    return "User-agent: *\nAllow: /\n", 200, {"Content-Type": "text/plain"}
+    base = site_base_url()
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /px/\n"
+        "Disallow: /auth/\n"
+        f"Sitemap: {base}/sitemap.xml\n"
+    )
+    return body, 200, {"Content-Type": "text/plain; charset=utf-8"}
 
 
 @app.route('/api/config')
@@ -730,6 +876,23 @@ def auth_google():
     return jsonify({"ok": True, "user": user})
 
 
+@app.route('/auth/google-token', methods=['POST'])
+def auth_google_token():
+    tok = (request.json or {}).get("access_token", "")
+    info = verify_google_access_token(tok)
+    if not info:
+        return jsonify({"ok": False, "error": "Token de Google inválido"}), 400
+    user = upsert_user(
+        "google",
+        info.get("sub"),
+        info.get("email"),
+        info.get("name"),
+        info.get("picture"),
+    )
+    session["user"] = user
+    return jsonify({"ok": True, "user": user})
+
+
 @app.route('/auth/facebook', methods=['POST'])
 def auth_facebook():
     tok = (request.json or {}).get("access_token", "")
@@ -742,8 +905,30 @@ def auth_facebook():
     return jsonify({"ok": True, "user": user})
 
 
+@app.route('/auth/apple/start')
+def auth_apple_start():
+    if not APPLE_CLIENT_ID:
+        return "Apple Sign In no está configurado", 503
+    state = secrets.token_urlsafe(24)
+    session["apple_oauth_state"] = state
+    redirect_uri = site_base_url() + "/auth/apple/callback"
+    params = {
+        "client_id": APPLE_CLIENT_ID,
+        "redirect_uri": redirect_uri,
+        "response_type": "code id_token",
+        "response_mode": "form_post",
+        "scope": "name email",
+        "state": state,
+    }
+    return redirect("https://appleid.apple.com/auth/authorize?" + urlencode(params))
+
+
 @app.route('/auth/apple/callback', methods=['POST'])
 def auth_apple_callback():
+    expected_state = session.pop("apple_oauth_state", None)
+    received_state = request.form.get("state")
+    if expected_state and received_state != expected_state:
+        return "Estado de Apple inválido", 400
     id_token = request.form.get("id_token") or ""
     payload = verify_apple_id_token(id_token)
     if not payload:
@@ -789,17 +974,50 @@ def auth_logout():
 def get_games():
     if not cargar_cache():
         return jsonify({'success': False, 'games': [], 'total': 0, 'count': 0})
-    games = _cache["stream"]
+
+    section = (request.args.get('section') or '').strip().lower()
+
+    if section == 'originals':
+        games = sorted(_cache["curated"].values(), key=lambda x: x["active_players"], reverse=True)
+    elif section in ('popular', 'ranking'):
+        games = sorted(_cache["stream"], key=lambda x: (x.get("active_players", 0), x.get("likes", 0)), reverse=True)
+    elif section == 'multiplayer':
+        games = [g for g in _cache["stream"] if g.get("category") in {"io", "disparos", "deportes"}]
+    elif section in ('new', 'updated'):
+        # La BD no guarda fecha de publicación. Se usa el orden de importación
+        # más reciente como aproximación, sin inventar una fecha.
+        games = list(reversed(_cache["db"])) + list(_cache["curated"].values())
+    else:
+        games = _cache["stream"]
+
     category = request.args.get('category')
-    search = request.args.get('search', '').lower()
+    search = request.args.get('search', '').strip().lower()
+
     if category:
         games = [g for g in games if g['category'] == category]
     if search:
         games = [g for g in games if search in g['title'].lower()]
+
     total = len(games)
-    offset = max(0, int(request.args.get('offset', 0)))
-    limit = int(request.args.get('limit', 0)) or total
-    return jsonify({'success': True, 'count': min(limit, max(total - offset, 0)), 'total': total, 'offset': offset, 'games': games[offset:offset + limit]})
+    try:
+        offset = max(0, int(request.args.get('offset', 0)))
+    except (TypeError, ValueError):
+        offset = 0
+    try:
+        limit = int(request.args.get('limit', 0))
+    except (TypeError, ValueError):
+        limit = 0
+    if limit <= 0:
+        limit = total
+    limit = min(limit, 500)
+
+    return jsonify({
+        'success': True,
+        'count': min(limit, max(total - offset, 0)),
+        'total': total,
+        'offset': offset,
+        'games': games[offset:offset + limit]
+    })
 
 
 @app.route('/api/curated')
@@ -813,11 +1031,12 @@ def get_curated():
 def get_game(game_id):
     if not cargar_cache():
         abort(500)
-    if str(game_id).startswith('c'):
-        g = _cache["curated"].get(game_id)
-        if not g:
-            abort(404)
+
+    # Los curados pueden llamarse c1, c2... o manual_2048, manual_pacman, etc.
+    g = _cache["curated"].get(str(game_id))
+    if g:
         return jsonify({'success': True, 'game': g, 'alternativas': []})
+
     try:
         idx = int(game_id) - 1
     except ValueError:
@@ -836,6 +1055,36 @@ def get_categories():
         return jsonify({'success': True, 'categories': CATEGORIES_DEF})
     cats = [dict(c, count=_cache["counts"].get(c["slug"], 0)) for c in CATEGORIES_DEF if _cache["counts"].get(c["slug"])]
     return jsonify({'success': True, 'categories': cats})
+
+
+@app.route('/api/report', methods=['POST'])
+def report_game():
+    data = request.get_json(silent=True) or {}
+    game_id = str(data.get("game_id") or "")[:128]
+    title = str(data.get("title") or "")[:200]
+    reason = str(data.get("reason") or "")[:500]
+    if not game_id or not reason:
+        return jsonify({"ok": False, "error": "Datos incompletos"}), 400
+
+    conn = sqlite3.connect(DB_FILE)
+    try:
+        conn.execute("""CREATE TABLE IF NOT EXISTS game_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            game_id TEXT NOT NULL,
+            title TEXT,
+            reason TEXT NOT NULL,
+            user_email TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )""")
+        user = session.get("user") or {}
+        conn.execute(
+            "INSERT INTO game_reports (game_id,title,reason,user_email) VALUES (?,?,?,?)",
+            (game_id, title, reason, user.get("email"))
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True})
 
 
 @app.route('/api/stats')
