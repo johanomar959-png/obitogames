@@ -358,17 +358,119 @@ def norm_title(t):
     return ''.join(ch for ch in (t or '').lower() if ch.isalnum())
 
 
-def construir_fuentes(gid, stored_url):
-    stored = (stored_url or "").strip()
-    if gid.startswith("gm_"):
-        cand = [stored, f"https://html5.gamemonetize.co/{gid[3:]}/"]
+def construir_fuentes(gid, stored_url, fuente=None):
+    """
+    Construye las URLs correctas según el distribuidor.
+
+    GameMonetize:
+        gm_123456
+        -> https://html5.gamemonetize.com/123456/
+
+    GameDistribution:
+        UUID/ID de GD
+        -> https://html5.gamedistribution.com/ID/
+
+    itch.io:
+        itch_123456
+        -> utiliza la URL guardada en iframe_url.
+    """
+
+    gid = str(gid or "").strip()
+    stored = str(stored_url or "").strip()
+
+    source = str(fuente or "").strip().lower()
+
+    # Normalizar nombres de fuente
+    if source in ("gm", "game monetize", "gamemonetize"):
+        source = "gamemonetize"
+    elif source in ("gd", "game distribution", "gamedistribution"):
+        source = "gamedistribution"
+    elif source in ("itch", "itch.io", "itchio"):
+        source = "itchio"
+
+    candidates = []
+
+    # =========================================================
+    # GAMEMONETIZE
+    # =========================================================
+    if source == "gamemonetize" or gid.startswith("gm_"):
+        if stored.startswith("http"):
+            candidates.append(stored)
+
+        if gid.startswith("gm_"):
+            gm_id = gid[3:].strip()
+
+            if gm_id:
+                candidates.append(
+                    f"https://html5.gamemonetize.com/{gm_id}/"
+                )
+
+    # =========================================================
+    # ITCH.IO
+    # =========================================================
+    elif source == "itchio" or gid.startswith("itch_"):
+        # Para itch.io NO construimos una URL de GameDistribution.
+        # Usamos la URL que guardó actualizar_juegos.py.
+        if stored.startswith("http"):
+            candidates.append(stored)
+
+    # =========================================================
+    # GAMEDISTRIBUTION
+    # =========================================================
+    elif source == "gamedistribution":
+        if stored.startswith("http"):
+            candidates.append(stored)
+
+        if gid:
+            candidates.append(
+                f"https://html5.gamedistribution.com/{gid}/"
+            )
+
+    # =========================================================
+    # COMPATIBILIDAD CON REGISTROS ANTIGUOS
+    # =========================================================
     else:
-        cand = [f"https://html5.gamedistribution.com/{gid}/", stored]
-    out = []
-    for c in cand:
-        if c and c.startswith("http") and c not in out:
-            out.append(c)
-    return out
+        if gid.startswith("gm_"):
+            gm_id = gid[3:].strip()
+
+            if stored.startswith("http"):
+                candidates.append(stored)
+
+            if gm_id:
+                candidates.append(
+                    f"https://html5.gamemonetize.com/{gm_id}/"
+                )
+
+        elif gid.startswith("itch_"):
+            if stored.startswith("http"):
+                candidates.append(stored)
+
+        else:
+            if stored.startswith("http"):
+                candidates.append(stored)
+
+            if gid:
+                candidates.append(
+                    f"https://html5.gamedistribution.com/{gid}/"
+                )
+
+    # Eliminar duplicados y URLs inválidas
+    result = []
+    seen = set()
+
+    for url in candidates:
+        url = url.strip()
+
+        if not url.startswith(("http://", "https://")):
+            continue
+
+        if url in seen:
+            continue
+
+        seen.add(url)
+        result.append(url)
+
+    return result
 
 
 def asegurar_columnas(conn):
@@ -438,12 +540,30 @@ def cargar_cache():
             curated[gid] = g
         else:
             if not imagen:
-                if gid.startswith("gm_"):
+                fuente_actual = str(r["fuente"] or "").strip().lower()
+
+                if fuente_actual in ("gm", "gamemonetize", "game monetize") or gid.startswith("gm_"):
                     imagen = f"https://img.gamemonetize.com/{gid[3:]}/512x384.jpg"
-                else:
+
+                elif fuente_actual in ("gd", "gamedistribution", "game distribution"):
                     imagen = f"https://img.gamedistribution.com/{gid}.jpg"
+
+                elif fuente_actual in ("itch", "itchio", "itch.io") or gid.startswith("itch_"):
+                    # itch.io: no inventamos una URL de imagen.
+                    # Si actualizar_juegos.py guardó imagen_url, se utilizará arriba.
+                    imagen = ""
+
+                else:
+                    imagen = ""
+            
             slug = mapear_categoria(r["categoria"])
-            base_src = construir_fuentes(gid, r["iframe_url"])
+            
+            base_src = construir_fuentes(
+                gid,
+                r["iframe_url"],
+                r["fuente"]
+            )
+            
             full = orden_fuentes(base_src, check=False)
             g = {
                 "id": len(db) + 1, "gd_id": gid, "title": r["titulo"] or "Sin título",
