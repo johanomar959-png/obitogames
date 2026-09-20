@@ -8,7 +8,7 @@ import secrets
 from urllib.parse import urljoin, urlparse, urlencode
 from xml.sax.saxutils import escape as xml_escape
 import unicodedata
-from flask import Flask, render_template, jsonify, request, abort, session, redirect, Response, send_from_directory
+from flask import Flask, render_template, jsonify, request, abort, session, redirect, Response
 
 try:
     import requests as http_requests
@@ -30,6 +30,7 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
 FACEBOOK_APP_ID = os.environ.get("FACEBOOK_APP_ID", "").strip()
 FACEBOOK_APP_SECRET = os.environ.get("FACEBOOK_APP_SECRET", "").strip()
 APPLE_CLIENT_ID = os.environ.get("APPLE_CLIENT_ID", "").strip()
+GAMEMONETIZE_AD_TAG = os.environ.get("GAMEMONETIZE_AD_TAG", "").strip()
 
 SECRET_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "secret_key.txt")
 def _load_secret():
@@ -49,6 +50,7 @@ MANUAL_PHOTOS = {
     "Smash Karts": "https://imgs.crazygames.com/smash-karts_16x9/20260210123937/smash-karts_16x9-cover?metadata=none&quality=100&width=1200&height=630&fit=crop",
 }
 
+# ===== CURADOS (se removieron 2048, Hole.io, Paper.io 2, Agar.io por no funcionar) =====
 ORIENT_CURATED = {
     "Smash Karts": "horizontal", "1v1.LOL": "horizontal", "Venge.io": "horizontal",
     "Slither.io": "auto", "Shell Shockers": "horizontal",
@@ -110,27 +112,10 @@ GRADIENTS = {
     "trivia": "from-yellow-700 to-black",
 }
 
-CURATED_RAW = [
-    ("Smash Karts", "io", "io", "🏎️", ["https://smashkarts.io/"], 980000, 1500000),
-    ("1v1.LOL", "batalla", "disparos", "🔫", ["https://1v1.lol/"], 950000, 1400000),
-    ("Venge.io", "batalla", "disparos", "🥷", ["https://venge.io/"], 900000, 1300000),
-    ("Slither.io", "io", "io", "🐍", ["https://slither.io/"], 800000, 1050000),
-    ("Shell Shockers", "batalla", "disparos", "🥚", ["https://shellshock.io/"], 680000, 880000),
-    ("ZombsRoyale.io", "io", "io", "🧟", ["https://zombsroyale.io/"], 660000, 860000),
-    ("Skribbl.io", "mente", "palabras", "✏️", ["https://skribbl.io/"], 640000, 840000),
-    ("Diep.io", "io", "io", "🔵", ["https://diep.io/"], 620000, 820000),
-    ("Krunker.io", "batalla", "disparos", "💀", ["https://krunker.io/"], 600000, 800000),
-    ("Little Big Snake", "io", "io", "🐍", ["https://littlebigsnake.com/"], 580000, 780000),
-    ("EvoWars.io", "io", "io", "⚔️", ["https://evowars.io/"], 520000, 720000),
-    ("Surviv.io", "io", "io", "🪖", ["https://surviv.io/"], 500000, 700000),
-    ("Wings.io", "io", "io", "✈️", ["https://wings.io/"], 480000, 680000),
-    ("Bonk.io", "io", "io", "⚾", ["https://bonk.io/"], 460000, 660000),
-    ("Gartic Phone", "mente", "palabras", "🎨", ["https://garticphone.com/"], 780000, 1000000),
-    ("Flappy Bird", "clasicos", "arcade", "🐦", ["https://ellisonleao.github.io/clumsy-bird/"], 360000, 560000),
-    ("Pac-Man", "clasicos", "arcade", "👻", ["https://shaunew.github.io/Pac-Man/"], 100000, 300000),
-    ("Tetris", "clasicos", "puzzle", "🧩", ["https://chvin.github.io/tetris/"], 90000, 280000),
-    ("Hextris", "clasicos", "puzzle", "⬡", ["https://hextris.github.io/hextris/"], 80000, 260000),
-]
+# ===== CURADOS FUNCIONALES (sin 2048/Hole.io/Paper.io2/Agar.io) =====
+# Curados antiguos desactivados: varios sitios cambiaron sus políticas de iframe.
+# Los juegos manuales con IDs manual_* se preservan en juegos.db.
+CURATED_RAW = []
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0 Safari/537.36",
       "Accept": "application/json"}
@@ -179,52 +164,50 @@ _frame_cache = {}
 
 
 def fuente_embebible(url):
-    if not http_requests:
-        return True
+    """Chequeo conservador para curados/manuales."""
+    if not http_requests or not url:
+        return False
     if url in _frame_cache:
         return _frame_cache[url]
-    ok = True
+    ok = False
     try:
-        r = http_requests.get(url, headers=UA, timeout=8, stream=True)
+        r = http_requests.get(url, headers=UA, timeout=8, stream=True, allow_redirects=True)
         xfo = (r.headers.get("X-Frame-Options") or "").strip().lower()
         csp = (r.headers.get("Content-Security-Policy") or "").lower()
-        if xfo in ("deny", "sameorigin") or "frame-ancestors" in csp:
+        ok = r.status_code < 400
+        if "deny" in xfo or "sameorigin" in xfo:
+            ok = False
+        m = re.search(r"(?:^|;)\s*frame-ancestors\s+([^;]+)", csp)
+        if m and "*" not in m.group(1):
             ok = False
         r.close()
     except Exception:
-        ok = True
+        ok = False
     _frame_cache[url] = ok
     return ok
 
 
 def orden_fuentes(base_src, check=False):
+    """Usa fuentes directas; no intenta saltarse bloqueos mediante proxy."""
     if not base_src:
         return []
-    seen = set()
-    res = []
-    def add(s):
-        if s and s not in seen:
-            seen.add(s)
-            res.append(s)
-    if not check:
-        for s in base_src:
-            add(s)
-        add(con_proxy(base_src[0]))
-        return res
-    directas = [s for s in base_src if fuente_embebible(s)]
-    bloqueadas = [s for s in base_src if not fuente_embebible(s)]
-    for s in directas:
-        add(s)
-    if not directas and bloqueadas:
-        add(con_proxy(bloqueadas[0]))
-    for s in bloqueadas:
-        add(con_proxy(s))
-    return res
+    out, seen = [], set()
+    for s in base_src:
+        s = str(s or "").strip()
+        if not s.startswith(("http://", "https://")) or s in seen:
+            continue
+        seen.add(s)
+        if check and not fuente_embebible(s):
+            continue
+        out.append(s)
+    return out
 
 
+# ===== TENDENCIAS GAMEMONETIZE =====
 TRENDING_CACHE = {"ids": [], "ts": 0}
 
 def fetch_gamemonetize_trending(num=50):
+    """Consulta la API de GameMonetize y devuelve ids ordenados por popularidad."""
     now = time.time()
     if TRENDING_CACHE["ids"] and (now - TRENDING_CACHE["ts"]) < 3600:
         return TRENDING_CACHE["ids"]
@@ -369,6 +352,7 @@ def norm_title(t):
 
 
 def slugify(text):
+    """Slug legible y seguro para URLs SEO."""
     text = unicodedata.normalize("NFKD", str(text or ""))
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
     text = text.lower()
@@ -383,6 +367,7 @@ def make_game_slug(title, stable_id):
 
 
 def parse_sources_value(value, fallback=""):
+    """Acepta sources antiguos separados por | y nuevos guardados como JSON."""
     raw = str(value or "").strip()
     out = []
     if raw:
@@ -419,10 +404,28 @@ def render_spa(title=None, description=None, canonical=None, image=None, initial
 
 
 def construir_fuentes(gid, stored_url, fuente=None):
+    """
+    Construye las URLs correctas según el distribuidor.
+
+    GameMonetize:
+        gm_123456
+        -> https://html5.gamemonetize.com/123456/
+
+    GameDistribution:
+        UUID/ID de GD
+        -> https://html5.gamedistribution.com/ID/
+
+    itch.io:
+        itch_123456
+        -> utiliza la URL guardada en iframe_url.
+    """
+
     gid = str(gid or "").strip()
     stored = str(stored_url or "").strip()
+
     source = str(fuente or "").strip().lower()
 
+    # Normalizar nombres de fuente
     if source in ("gm", "game monetize", "gamemonetize"):
         source = "gamemonetize"
     elif source in ("gd", "game distribution", "gamedistribution"):
@@ -432,40 +435,73 @@ def construir_fuentes(gid, stored_url, fuente=None):
 
     candidates = []
 
+    # =========================================================
+    # GAMEMONETIZE
+    # =========================================================
     if source == "gamemonetize" or gid.startswith("gm_"):
+        # GameMonetize usa tokens de embed que NO siempre coinciden con
+        # el ID numérico del catálogo. La URL válida debe venir de la BD.
         if stored.startswith("http"):
             candidates.append(stored)
+
+    # =========================================================
+    # ITCH.IO
+    # =========================================================
     elif source == "itchio" or gid.startswith("itch_"):
+        # Para itch.io NO construimos una URL de GameDistribution.
+        # Usamos la URL que guardó actualizar_juegos.py.
         if stored.startswith("http"):
             candidates.append(stored)
+
+    # =========================================================
+    # GAMEDISTRIBUTION
+    # =========================================================
     elif source == "gamedistribution":
         if stored.startswith("http"):
             candidates.append(stored)
+
         if gid:
-            candidates.append(f"https://html5.gamedistribution.com/{gid}/")
+            candidates.append(
+                f"https://html5.gamedistribution.com/{gid}/"
+            )
+
+    # =========================================================
+    # COMPATIBILIDAD CON REGISTROS ANTIGUOS
+    # =========================================================
     else:
         if gid.startswith("gm_"):
             if stored.startswith("http"):
                 candidates.append(stored)
+
         elif gid.startswith("itch_"):
             if stored.startswith("http"):
                 candidates.append(stored)
+
         else:
             if stored.startswith("http"):
                 candidates.append(stored)
-            if gid:
-                candidates.append(f"https://html5.gamedistribution.com/{gid}/")
 
+            if gid:
+                candidates.append(
+                    f"https://html5.gamedistribution.com/{gid}/"
+                )
+
+    # Eliminar duplicados y URLs inválidas
     result = []
     seen = set()
+
     for url in candidates:
         url = url.strip()
+
         if not url.startswith(("http://", "https://")):
             continue
+
         if url in seen:
             continue
+
         seen.add(url)
         result.append(url)
+
     return result
 
 
@@ -540,17 +576,29 @@ def cargar_cache():
         else:
             if not imagen:
                 fuente_actual = str(r["fuente"] or "").strip().lower()
+
                 if fuente_actual in ("gm", "gamemonetize", "game monetize") or gid.startswith("gm_"):
                     imagen = f"https://img.gamemonetize.com/{gid[3:]}/512x384.jpg"
+
                 elif fuente_actual in ("gd", "gamedistribution", "game distribution"):
                     imagen = f"https://img.gamedistribution.com/{gid}.jpg"
+
                 elif fuente_actual in ("itch", "itchio", "itch.io") or gid.startswith("itch_"):
+                    # itch.io: no inventamos una URL de imagen.
+                    # Si actualizar_juegos.py guardó imagen_url, se utilizará arriba.
                     imagen = ""
+
                 else:
                     imagen = ""
             
             slug = mapear_categoria(r["categoria"])
-            base_src = construir_fuentes(gid, r["iframe_url"], r["fuente"])
+            
+            base_src = construir_fuentes(
+                gid,
+                r["iframe_url"],
+                r["fuente"]
+            )
+            
             full = orden_fuentes(base_src, check=False)
             g = {
                 "id": len(db) + 1, "gd_id": gid, "title": r["titulo"] or "Sin título",
@@ -572,6 +620,7 @@ def cargar_cache():
         by_title.setdefault(norm_title(g["title"]), []).append(g)
         by_slug[g["seo_slug"]] = g
 
+    # ===== TENDENCIAS: GameMonetize populares primero, ligados con curados =====
     trending_ids = fetch_gamemonetize_trending()
     trank = {gid: i for i, gid in enumerate(trending_ids)}
     for g in db:
@@ -582,6 +631,7 @@ def cargar_cache():
     rest_games = sorted([g for g in db if g.get("trending") is None], key=lambda x: x["active_players"], reverse=True)
     cur_list = sorted(curated.values(), key=lambda x: x["active_players"], reverse=True)
 
+    # Top intercalado: 2 tendencias + 1 curado (liga famosos con curados)
     top = []
     ti = cj = 0
     while ti < len(trend_games) or cj < len(cur_list):
@@ -597,6 +647,7 @@ def cargar_cache():
     return True
 
 
+# ===== USUARIOS =====
 def ensure_users():
     conn = sqlite3.connect(DB_FILE)
     conn.execute("""CREATE TABLE IF NOT EXISTS users (
@@ -698,6 +749,7 @@ def verify_apple_id_token(token):
         return None
 
 
+# ===== RUTAS =====
 @app.route('/')
 def home():
     base = site_base_url()
@@ -784,14 +836,14 @@ def robots():
     return body, 200, {"Content-Type": "text/plain; charset=utf-8"}
 
 
-@app.route("/googlea6b3d7e05c3d84a1.html")
-def google_verification():
-    return send_from_directory(".", "googlea6b3d7e05c3d84a1.html")
-
-
 @app.route('/api/config')
 def api_config():
-    return jsonify({"google": GOOGLE_CLIENT_ID, "facebook": FACEBOOK_APP_ID, "apple": APPLE_CLIENT_ID})
+    return jsonify({
+        "google": GOOGLE_CLIENT_ID,
+        "facebook": FACEBOOK_APP_ID,
+        "apple": APPLE_CLIENT_ID,
+        "gamemonetize_ads_configured": bool(GAMEMONETIZE_AD_TAG),
+    })
 
 
 @app.route('/auth/google', methods=['POST'])
@@ -913,6 +965,8 @@ def get_games():
     elif section == 'multiplayer':
         games = [g for g in _cache["stream"] if g.get("category") in {"io", "disparos", "deportes"}]
     elif section in ('new', 'updated'):
+        # La BD no guarda fecha de publicación. Se usa el orden de importación
+        # más reciente como aproximación, sin inventar una fecha.
         games = list(reversed(_cache["db"])) + list(_cache["curated"].values())
     else:
         games = _cache["stream"]
@@ -959,6 +1013,7 @@ def get_game(game_id):
     if not cargar_cache():
         abort(500)
 
+    # Los curados pueden llamarse c1, c2... o manual_2048, manual_pacman, etc.
     g = _cache["curated"].get(str(game_id))
     if g:
         return jsonify({'success': True, 'game': g, 'alternativas': []})

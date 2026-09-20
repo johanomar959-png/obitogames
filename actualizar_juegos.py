@@ -8,6 +8,8 @@ import re
 import html
 import xml.etree.ElementTree as ET
 from collections import Counter
+from urllib.parse import urljoin, urlparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
     import requests
@@ -116,6 +118,12 @@ ITCH_DELAY_MIN = 2.0
 ITCH_DELAY_MAX = 4.0
 
 ITCH_RETRIES = 3
+
+# Solo conservamos juegos de itch.io cuando encontramos el iframe HTML5 real.
+# Las páginas tipo autor.itch.io/juego NO se usan como iframe porque muchas
+# rechazan ser embebidas por sitios externos.
+ITCH_EMBED_WORKERS = 6
+ITCH_EMBED_TIMEOUT = 20
 
 
 # ============================================================
@@ -1034,305 +1042,212 @@ def cargar_gm():
 # ITCH.IO RSS
 # ============================================================
 
-def parse_itch_rss(
-    content
-):
-
+def parse_itch_rss(content):
+    """Extrae metadatos del RSS. Aún NO considera la página de itch un embed."""
     try:
-
-        root = ET.fromstring(
-            content
-        )
-
+        root = ET.fromstring(content)
     except Exception as e:
-
-        print(
-            f"   ⚠️ itch RSS inválido: {e}"
-        )
-
+        print(f"   ⚠️ itch RSS inválido: {e}")
         return []
 
-    items = root.findall(
-        ".//item"
-    )
-
+    items = root.findall(".//item")
     out = []
 
     for item in items:
-
         def get_text(tag):
-
-            el = item.find(
-                tag
-            )
-
-            if (
-                el is not None
-                and el.text
-            ):
-                return clean_text(
-                    el.text
-                )
-
+            el = item.find(tag)
+            if el is not None and el.text:
+                return clean_text(el.text)
             for child in item:
-
-                if child.tag.lower().endswith(
-                    "}" + tag.lower()
-                ):
-
-                    if child.text:
-                        return clean_text(
-                            child.text
-                        )
-
+                if child.tag.lower().endswith("}" + tag.lower()) and child.text:
+                    return clean_text(child.text)
             return ""
 
-        title = get_text(
-            "title"
-        )
-
-        description = get_text(
-            "description"
-        )
-
-        link = get_text(
-            "link"
-        )
-
+        title = get_text("title")
+        description = get_text("description")
+        link = normalize_url(get_text("link"))
         if not link:
             continue
 
         image = ""
-
         for child in item:
-
             tag = child.tag.lower()
-
-            if (
-                "content" in tag
-                or "thumbnail" in tag
-                or "image" in tag
-                or "enclosure" in tag
-            ):
-
-                image = (
-                    child.attrib.get(
-                        "url"
-                    )
-                    or child.attrib.get(
-                        "href"
-                    )
-                    or child.text
-                    or ""
-                )
-
+            if ("content" in tag or "thumbnail" in tag or "image" in tag or "enclosure" in tag):
+                image = child.attrib.get("url") or child.attrib.get("href") or child.text or ""
                 if image:
                     break
 
-        gid_raw = extract_id_from_url(
-            link
-        )
-
+        gid_raw = extract_id_from_url(link)
         if not gid_raw:
             continue
 
-        gid = f"itch_{gid_raw}"
-
         out.append({
-            "gid": gid,
+            "gid": f"itch_{gid_raw}",
             "titulo": title,
             "desc": description[:220],
             "cat": "arcade",
-            "img": normalize_url(
-                image
-            ),
-            "embed": normalize_url(
-                link
-            ),
+            "img": normalize_url(image),
+            # IMPORTANTÍSIMO: la landing page NO es el iframe del juego.
+            "embed": "",
+            "landing_url": link,
             "dist": "itchio",
-
             "raw_views": 0,
             "raw_downloads": 0,
             "raw_rating": 0,
-
             "raw_id": 0,
         })
 
     return out
 
 
-def cargar_itch():
+def _itch_embed_valido(url):
+    try:
+        p = urlparse(str(url or ""))
+    except Exception:
+        return False
+    host = (p.hostname or "").lower()
+    path = p.path or ""
+    if p.scheme not in ("http", "https"):
+        return False
+    # itch aloja los juegos HTML5 reales principalmente en *.itch.zone.
+    if host == "itch.zone" or host.endswith(".itch.zone"):
+        return True
+    # Compatibilidad con un formato oficial antiguo/nuevo si aparece.
+    if host in ("itch.io", "www.itch.io") and "/embed-upload/" in path:
+        return True
+    return False
 
+
+def resolver_itch_embed(landing_url):
+    """Obtiene el iframe HTML5 real de una página itch.io. Si no existe, devuelve ''."""
+    if not requests or not landing_url:
+        return ""
+    try:
+        r = requests.get(
+            landing_url,
+            headers={**UA, "Accept": "text/html,application/xhtml+xml,*/*"},
+            timeout=ITCH_EMBED_TIMEOUT,
+            allow_redirects=True,
+        )
+        if r.status_code != 200 or not r.text:
+            return ""
+        text = html.unescape(r.text[:1200000]).replace("\\/", "/")
+
+        # Primero buscamos atributos de iframe/data-*.
+        patterns = (
+            r"<iframe[^>]*?src=['\"]([^'\"]+)['\"]",
+            r"data-iframe=['\"]([^'\"]+)['\"]",
+            r"data-src=['\"]([^'\"]+)['\"]",
+            r"data-game-url=['\"]([^'\"]+)['\"]",
+            r"['\"](https?://(?:[^'\"]+\.)?itch\.zone/[^'\"]+)['\"]",
+        )
+        for pat in patterns:
+            for m in re.finditer(pat, text, re.I):
+                cand = normalize_url(urljoin(r.url, m.group(1)))
+                if _itch_embed_valido(cand):
+                    return cand
+    except Exception:
+        return ""
+    return ""
+
+
+def cargar_itch():
     if not requests:
         return []
 
-    print(
-        "   🔎 itch.io mediante RSS público..."
-    )
-
-    out = []
+    print("   🔎 itch.io mediante RSS público...")
+    candidatos = []
     seen = set()
 
-    for feed_index, feed_base in enumerate(
-        ITCH_FEEDS
-    ):
+    for feed_index, feed_base in enumerate(ITCH_FEEDS):
+        print(f"   • Feed {feed_index + 1}/{len(ITCH_FEEDS)}")
 
-        print(
-            f"   • Feed {feed_index + 1}/"
-            f"{len(ITCH_FEEDS)}"
-        )
-
-        for page in range(
-            1,
-            ITCH_MAX_PAGES + 1
-        ):
-
+        for page in range(1, ITCH_MAX_PAGES + 1):
             if page == 1:
                 url = feed_base
             else:
-                separator = (
-                    "&"
-                    if "?" in feed_base
-                    else "?"
-                )
-
-                url = (
-                    f"{feed_base}"
-                    f"{separator}page={page}"
-                )
+                separator = "&" if "?" in feed_base else "?"
+                url = f"{feed_base}{separator}page={page}"
 
             if page > 1:
-
-                delay = random.uniform(
-                    ITCH_DELAY_MIN,
-                    ITCH_DELAY_MAX
-                )
-
-                time.sleep(
-                    delay
-                )
+                time.sleep(random.uniform(ITCH_DELAY_MIN, ITCH_DELAY_MAX))
 
             r = None
-
-            for attempt in range(
-                ITCH_RETRIES + 1
-            ):
-
+            for attempt in range(ITCH_RETRIES + 1):
                 try:
-
-                    r = requests.get(
-                        url,
-                        headers=UA,
-                        timeout=60
-                    )
-
+                    r = requests.get(url, headers=UA, timeout=60)
                 except requests.RequestException as e:
-
-                    print(
-                        f"   ⚠️ itch error: {e}"
-                    )
-
-                    time.sleep(
-                        3 + attempt * 2
-                    )
-
+                    print(f"   ⚠️ itch error: {e}")
+                    time.sleep(3 + attempt * 2)
                     continue
 
                 if r.status_code == 200:
                     break
 
                 if r.status_code == 429:
-
-                    retry_after = (
-                        r.headers.get(
-                            "Retry-After"
-                        )
-                    )
-
-                    if retry_after:
-
-                        try:
-                            wait = float(
-                                retry_after
-                            )
-                        except Exception:
-                            wait = 10
-
-                    else:
-
-                        wait = (
-                            8
-                            + attempt * 8
-                        )
-
-                    print(
-                        f"   ⚠️ itch HTTP 429 "
-                        f"→ esperando "
-                        f"{wait:.1f}s "
-                        f"(intento "
-                        f"{attempt + 1}/"
-                        f"{ITCH_RETRIES + 1})"
-                    )
-
-                    time.sleep(
-                        wait
-                    )
-
+                    retry_after = r.headers.get("Retry-After")
+                    try:
+                        wait = float(retry_after) if retry_after else (8 + attempt * 8)
+                    except Exception:
+                        wait = 10
+                    print(f"   ⚠️ itch HTTP 429 → esperando {wait:.1f}s (intento {attempt + 1}/{ITCH_RETRIES + 1})")
+                    time.sleep(wait)
                     continue
 
-                print(
-                    f"   ⚠️ itch HTTP "
-                    f"{r.status_code}"
-                )
-
+                print(f"   ⚠️ itch HTTP {r.status_code}")
                 break
 
-            if not r:
+            if not r or r.status_code != 200:
                 break
 
-            if r.status_code != 200:
-                break
-
-            games = parse_itch_rss(
-                r.content
-            )
-
+            games = parse_itch_rss(r.content)
             if not games:
                 break
 
             for game in games:
-
                 gid = game["gid"]
-
                 if gid in seen:
                     continue
-
                 seen.add(gid)
-
-                out.append(
-                    game
-                )
+                candidatos.append(game)
 
             if len(games) < 10:
                 break
 
-        if feed_index < len(
-            ITCH_FEEDS
-        ) - 1:
+        if feed_index < len(ITCH_FEEDS) - 1:
+            time.sleep(random.uniform(4, 7))
 
-            time.sleep(
-                random.uniform(
-                    4,
-                    7
-                )
-            )
+    if not candidatos:
+        print("   ✓ itch.io: 0 candidatos")
+        return []
 
-    print(
-        f"   ✓ itch.io total: "
-        f"{len(out)} juegos"
-    )
+    print(f"   🔎 itch.io: resolviendo iframe HTML5 real para {len(candidatos)} candidatos...")
+    validos = []
 
-    return out
+    # Concurrencia moderada: evita que la actualización tarde demasiado sin golpear itch.io en exceso.
+    with ThreadPoolExecutor(max_workers=ITCH_EMBED_WORKERS) as pool:
+        future_map = {
+            pool.submit(resolver_itch_embed, g.get("landing_url", "")): g
+            for g in candidatos
+        }
+        hechos = 0
+        for fut in as_completed(future_map):
+            game = future_map[fut]
+            hechos += 1
+            try:
+                embed = fut.result() or ""
+            except Exception:
+                embed = ""
+            if embed:
+                game["embed"] = embed
+                game.pop("landing_url", None)
+                validos.append(game)
+            if hechos % 50 == 0 or hechos == len(candidatos):
+                print(f"      • revisados {hechos}/{len(candidatos)} | embebibles: {len(validos)}")
+
+    print(f"   ✓ itch.io embebibles reales: {len(validos)} juegos")
+    print(f"   🚫 itch.io descartados por no tener iframe HTML5 utilizable: {len(candidatos) - len(validos)}")
+    return validos
 
 
 # ============================================================
@@ -2461,11 +2376,6 @@ def main():
             f"\n🛡️ Backup disponible: {bk}"
         )
 
-        print(
-            "\n⚠️ Si la API key de itch.io "
-            "anterior era real y fue expuesta, "
-            "revócala."
-        )
 
     finally:
 

@@ -428,6 +428,52 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
     .seo-proof>div{grid-template-columns:auto 1fr}
   }
 
+
+  /* ===== GAME STAGE RESPONSIVE + FULLSCREEN ===== */
+  #stageBox{width:100%;min-width:0;background:#000;isolation:isolate;}
+  #stageWrap{width:100%;max-width:100%;margin:0 auto;background:#000;overflow:hidden;}
+  #stageInner,#stageInner>iframe{width:100%;height:100%;}
+  #stageInner>iframe{display:block;background:#000;}
+
+  #stageBox:fullscreen,#stageBox:-webkit-full-screen{
+    position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;
+    max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;
+    border:0!important;border-radius:0!important;background:#000!important;box-shadow:none!important;
+    overflow:hidden!important;
+  }
+  #stageBox:fullscreen #stageWrap,#stageBox:-webkit-full-screen #stageWrap{
+    position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+    max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;
+    aspect-ratio:auto!important;background:#000!important;
+  }
+  #stageBox:fullscreen #stageInner,#stageBox:-webkit-full-screen #stageInner,
+  #stageBox:fullscreen iframe,#stageBox:-webkit-full-screen iframe{
+    position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+    max-width:none!important;max-height:none!important;border:0!important;
+  }
+  #stageBox:fullscreen #stageOverlay,#stageBox:-webkit-full-screen #stageOverlay,
+  #stageBox:fullscreen #rotateHint,#stageBox:-webkit-full-screen #rotateHint{inset:0!important;}
+
+  @supports (height:100dvh){
+    #stageBox:fullscreen,#stageBox:-webkit-full-screen{width:100dvw!important;height:100dvh!important;}
+  }
+  @media (max-width:640px){
+    #gameView{padding:.5rem!important;}
+    #stageBox{border-radius:.8rem .8rem 0 0!important;}
+    #stageWrap{min-height:210px;}
+  }
+
+
+  /* ===== FULLSCREEN MÓVIL REAL + FALLBACK VISUAL ===== */
+  #gamePlayerShell{min-width:0;}
+  #gamePlayerShell:fullscreen,#gamePlayerShell:-webkit-full-screen,#gamePlayerShell.obito-pseudo-fullscreen{position:fixed!important;inset:0!important;z-index:9999!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;background:#000!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+  @supports (height:100dvh){ #gamePlayerShell:fullscreen,#gamePlayerShell:-webkit-full-screen,#gamePlayerShell.obito-pseudo-fullscreen{width:100dvw!important;height:100dvh!important;}}
+  #gamePlayerShell:fullscreen #stageBox,#gamePlayerShell:-webkit-full-screen #stageBox,#gamePlayerShell.obito-pseudo-fullscreen #stageBox{flex:1 1 auto!important;min-height:0!important;width:100%!important;height:auto!important;border:0!important;border-radius:0!important;box-shadow:none!important;}
+  #gamePlayerShell:fullscreen #stageWrap,#gamePlayerShell:-webkit-full-screen #stageWrap,#gamePlayerShell.obito-pseudo-fullscreen #stageWrap{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;aspect-ratio:auto!important;}
+  #gamePlayerShell:fullscreen #gameToolbar,#gamePlayerShell:-webkit-full-screen #gameToolbar,#gamePlayerShell.obito-pseudo-fullscreen #gameToolbar{flex:0 0 auto!important;border-radius:0!important;flex-wrap:nowrap!important;overflow-x:auto!important;padding-bottom:max(.5rem,env(safe-area-inset-bottom))!important;background:rgba(10,2,3,.94)!important;}
+  body.obito-no-scroll{overflow:hidden!important;overscroll-behavior:none!important;}
+  @media(max-width:767px){ #gameView{padding:.45rem!important;}#gameToolbar{flex-wrap:nowrap!important;overflow-x:auto!important;gap:.25rem!important;scrollbar-width:none;}#gameToolbar::-webkit-scrollbar{display:none;}#gameToolbar #tbTitle{max-width:36vw;}#gameToolbar .tool-btn{flex:0 0 auto;min-width:38px;justify-content:center;}}
+
 </style>
 </head>
 <body class="text-white min-h-screen">
@@ -593,6 +639,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
   <div id="gameView" class="p-4 lg:p-6 hidden">
     <div class="flex flex-col xl:flex-row gap-6">
       <div class="flex-1 min-w-0">
+        <div id="gamePlayerShell" class="relative w-full">
         <div id="stageBox" class="relative rounded-t-xl overflow-hidden ring-1 ring-red-900/40 bg-black">
           <div id="stageWrap" class="w-full relative">
             <div id="stageInner" class="absolute inset-0"></div>
@@ -613,7 +660,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
           </div>
           
         </div>
-        <div class="glass rounded-b-xl border-t-2 border-red-600/60 px-3 py-2 flex items-center gap-1.5 flex-wrap">
+        <div id="gameToolbar" class="glass rounded-b-xl border-t-2 border-red-600/60 px-3 py-2 flex items-center gap-1.5 flex-wrap">
           <div class="flex items-center gap-2 min-w-0 mr-2">
             <span id="tbEmoji" class="w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center text-lg shrink-0 overflow-hidden"></span>
             <span id="tbTitle" class="font-bold truncate"></span>
@@ -632,7 +679,18 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
           <button id="tabBtn" class="tool-btn" title="Abrir en pestaña nueva"></button>
           <button id="fsBtn" class="tool-btn" title="Pantalla completa"></button>
         </div>
+        </div><!-- /gamePlayerShell -->
         <div id="stageAd" class="mt-4"></div>
+        <section id="gmWalkthroughSection" class="hidden mt-4 rounded-2xl overflow-hidden border border-red-900/40 bg-black">
+          <div class="px-4 py-3 border-b border-red-900/40 flex items-center justify-between gap-3 bg-[#120607]">
+            <div>
+              <h3 class="font-extrabold text-white">Guía del juego</h3>
+              <p class="text-xs text-gray-400">Video tutorial de GameMonetize</p>
+            </div>
+            <span class="text-[10px] uppercase tracking-wider font-extrabold text-red-400">GameMonetize</span>
+          </div>
+          <div id="gamemonetize-video" class="w-full bg-black" style="min-height:480px"></div>
+        </section>
         <div id="gameInfo"></div>
         <nav class="text-xs text-gray-400 mt-3 flex items-center gap-1.5 flex-wrap font-medium">
           <button id="crumbHome" class="hover:text-red-400 transition">Juegos</button> »
@@ -906,6 +964,7 @@ var ICONS={home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path
 
 
 Object.assign(ICONS,{
+  minimize:'<path d="M8 3v5H3"/><path d="m3 8 5-5"/><path d="M16 3v5h5"/><path d="m21 8-5-5"/><path d="M8 21v-5H3"/><path d="m3 16 5 5"/><path d="M16 21v-5h5"/><path d="m21 16-5 5"/>',
   play:'<polygon points="6 3 20 12 6 21 6 3"/>',
   search:'<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>',
   grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
@@ -974,16 +1033,72 @@ function fmt(n){if(n>=1e6)return (n/1e6).toFixed(1).replace('.0','')+' M';if(n>=
 var toastTimer=null;
 function toast(m){var t=$('#toast');t.textContent=m;t.style.opacity='1';if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.style.opacity='0';},2500);}
 
+
+function copyTextSafe(value){
+  value=String(value||'');if(!value)return Promise.reject(new Error('empty'));
+  if(navigator.clipboard&&window.isSecureContext)return navigator.clipboard.writeText(value);
+  return new Promise(function(resolve,reject){
+    try{
+      var ta=document.createElement('textarea');ta.value=value;ta.setAttribute('readonly','');
+      ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+      var ok=document.execCommand('copy');document.body.removeChild(ta);
+      ok?resolve():reject(new Error('copy'));
+    }catch(e){reject(e);}
+  });
+}
+var AUTH_CONFIG={google:'',facebook:'',apple:''};
+function authFetch(url,options){
+  options=options||{};options.headers=Object.assign({'Accept':'application/json'},options.headers||{});
+  return fetch(url,options).then(function(res){
+    var ct=res.headers.get('content-type')||'';
+    if(ct.indexOf('application/json')>-1)return res.json().then(function(d){
+      if(!res.ok||d.ok===false)throw new Error(d.error||('HTTP '+res.status));return d;
+    });
+    if(!res.ok)throw new Error('HTTP '+res.status);return {};
+  });
+}
+function setAuthenticatedUser(user){store.set('obito_user',user&&user.email?user:null);updateUserUI();}
+function loadScriptOnce(id,src){
+  return new Promise(function(resolve,reject){
+    var old=document.getElementById(id);
+    if(old){if(old.dataset.loaded==='1'){resolve();return;}old.addEventListener('load',resolve,{once:true});old.addEventListener('error',reject,{once:true});return;}
+    var s=document.createElement('script');s.id=id;s.async=true;s.defer=true;s.src=src;
+    s.onload=function(){s.dataset.loaded='1';resolve();};s.onerror=reject;document.head.appendChild(s);
+  });
+}
+function loginGoogle(){
+  if(!AUTH_CONFIG.google){toast('Google Login aún no está configurado en Render');return;}
+  loadScriptOnce('google-gsi','https://accounts.google.com/gsi/client').then(function(){
+    if(!window.google||!google.accounts||!google.accounts.oauth2)throw new Error('Google SDK');
+    var client=google.accounts.oauth2.initTokenClient({
+      client_id:AUTH_CONFIG.google,scope:'openid email profile',
+      callback:function(resp){
+        if(!resp||!resp.access_token){toast('No se pudo iniciar sesión con Google');return;}
+        authFetch('/auth/google-token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({access_token:resp.access_token})})
+        .then(function(d){setAuthenticatedUser(d.user);$('#loginModal').classList.add('hidden');$('#loginModal').classList.remove('flex');toast('✅ Sesión iniciada con Google');})
+        .catch(function(e){toast('Google: '+e.message);});
+      }
+    });client.requestAccessToken();
+  }).catch(function(){toast('No se pudo cargar Google Login');});
+}
+function loginFacebook(){
+  if(!AUTH_CONFIG.facebook){toast('Facebook Login aún no está configurado en Render');return;}
+  loadScriptOnce('facebook-sdk','https://connect.facebook.net/en_US/sdk.js').then(function(){
+    if(!window.FB)throw new Error('Facebook SDK');
+    FB.init({appId:AUTH_CONFIG.facebook,cookie:true,xfbml:false,version:'v23.0'});
+    FB.login(function(response){
+      var token=response&&response.authResponse&&response.authResponse.accessToken;
+      if(!token){toast('Inicio de sesión con Facebook cancelado');return;}
+      authFetch('/auth/facebook',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({access_token:token})})
+      .then(function(d){setAuthenticatedUser(d.user);$('#loginModal').classList.add('hidden');$('#loginModal').classList.remove('flex');toast('✅ Sesión iniciada con Facebook');})
+      .catch(function(e){toast('Facebook: '+e.message);});
+    },{scope:'public_profile,email'});
+  }).catch(function(){toast('No se pudo cargar Facebook Login');});
+}
+
 function adBanner(compact){
-  if(ADS.client){
-    var slot=ADS.slots[compact?'info':'home']||"";
-    return '<ins class="adsbygoogle" style="display:block" data-ad-client="'+ADS.client+'" '+(slot?'data-ad-slot="'+slot+'"':'')+' data-ad-format="'+(compact?'rectangle':'auto')+'" data-full-width-responsive="true"></ins>';
-  }
-  return '<section class="relative rounded-2xl overflow-hidden ring-1 ring-red-900/40 bg-gradient-to-r from-[#1a0b0d] via-[#2a0f12] to-[#1a0b0d] '+(compact?'p-3':'p-4')+' flex items-center gap-4">'+
-  '<span class="absolute top-2 left-2 text-[10px] font-bold text-gray-400 bg-black/40 px-1.5 py-0.5 rounded">AD</span>'+
-  '<div class="'+(compact?'w-16 h-11':'w-24 h-16')+' rounded-lg bg-gradient-to-br from-red-600 to-red-950 flex items-center justify-center '+(compact?'text-xl':'text-3xl')+' shrink-0">📢</div>'+
-  '<div class="flex-1 min-w-0"><p class="font-extrabold text-gray-100 truncate">Tu anuncio aquí — Obito Games Network</p><p class="text-xs text-gray-400 truncate font-medium">Espacio publicitario premium · miles de jugadores diarios</p></div>'+
-  '<button type="button" data-advertise="1" class="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-xs font-bold shrink-0">Anunciarse</button></section>';
+  if(ADS.client){var slot=ADS.slots[compact?'info':'home']||"";return '<ins class="adsbygoogle" style="display:block" data-ad-client="'+ADS.client+'" '+(slot?'data-ad-slot="'+slot+'"':'')+' data-ad-format="'+(compact?'rectangle':'auto')+'" data-full-width-responsive="true"></ins>'; }
+  return '<div class="gm-ad-slot hidden" aria-hidden="true"></div>';
 }
 function refreshAds(root){
   if(!ADS.client)return;
@@ -1300,22 +1415,102 @@ function stageShow(msg,showFail){var ov=$('#stageOverlay');if(!ov)return;ov.clas
 function stageHide(){clearTimeout(stageState.timer);clearInterval(stageState.tick);var ov=$('#stageOverlay');if(!ov)return;ov.classList.add('hidden');ov.classList.remove('flex');}
 window.__stageLoaded=function(){stageHide();};
 
+var pageMuteObserver=null;
+
+function muteTopDocumentMedia(m){
+  document.querySelectorAll('audio,video').forEach(function(media){
+    try{
+      if(m){
+        if(media.dataset.obitoPrevMuted===undefined)media.dataset.obitoPrevMuted=media.muted?'1':'0';
+        media.muted=true;
+      }else{
+        media.muted=(media.dataset.obitoPrevMuted==='1');
+        delete media.dataset.obitoPrevMuted;
+      }
+    }catch(e){}
+  });
+}
+
 function setGameMuted(m){
   var fr=document.querySelector('#stageInner iframe');
   if(!fr)return false;
+  var controlled=false;
   try{
-    if(fr.contentWindow&&typeof fr.contentWindow.__obitoSetMuted==='function'){fr.contentWindow.__obitoSetMuted(m);return true;}
+    if(fr.contentWindow&&typeof fr.contentWindow.__obitoSetMuted==='function'){
+      fr.contentWindow.__obitoSetMuted(!!m);
+      controlled=true;
+    }
   }catch(e){}
-  return false;
+  try{
+    if(fr.contentWindow)fr.contentWindow.postMessage({type:'OBITO_MUTE',muted:!!m},'*');
+  }catch(e){}
+  return controlled;
 }
-function applyMuted(){if(state.current)setGameMuted(state.muted);}
+
+function findMuteProxyIndex(){
+  if(!stageState.sources)return -1;
+  for(var i=0;i<stageState.sources.length;i++){
+    if(String(stageState.sources[i]||'').indexOf('/px/')===0)return i;
+  }
+  return -1;
+}
+
+function enforcePageMute(){
+  if(!state.muted)return;
+  muteTopDocumentMedia(true);
+  var controlled=setGameMuted(true);
+  if(!controlled){
+    var current=String(stageState.currentUrl||'');
+    var proxyIndex=findMuteProxyIndex();
+    if(current&&current.indexOf('/px/')!==0&&proxyIndex>=0&&stageState.idx!==proxyIndex){
+      loadSource(proxyIndex);
+      return;
+    }
+  }
+  setTimeout(function(){if(state.muted)setGameMuted(true);},350);
+  setTimeout(function(){if(state.muted)setGameMuted(true);},1200);
+}
+
+function setPageMuted(m){
+  state.muted=!!m;
+  soundOn=!state.muted;
+  document.documentElement.dataset.obitoMuted=state.muted?'1':'0';
+  muteTopDocumentMedia(state.muted);
+
+  if(state.muted){
+    if(!pageMuteObserver&&'MutationObserver' in window){
+      pageMuteObserver=new MutationObserver(function(){
+        if(!state.muted)return;
+        muteTopDocumentMedia(true);
+        setGameMuted(true);
+      });
+      pageMuteObserver.observe(document.documentElement,{childList:true,subtree:true});
+    }
+    enforcePageMute();
+  }else{
+    if(pageMuteObserver){pageMuteObserver.disconnect();pageMuteObserver=null;}
+    setGameMuted(false);
+    muteTopDocumentMedia(false);
+  }
+  refreshToolbar();
+}
+
+function resetPageMuteOnHome(){
+  if(state.muted)setPageMuted(false);
+  else{state.muted=false;soundOn=true;muteTopDocumentMedia(false);}
+}
+
+function applyMuted(){if(state.muted)enforcePageMute();}
 
 function mountIframe(url){
   clearOverlayBg();stageState.currentUrl=url;
-  $('#stageInner').innerHTML='<iframe class="absolute inset-0 w-full h-full border-0 bg-black" src="'+url+'" frameborder="0" allowfullscreen="true" webkitallowfullscreen="true" mozallowfullscreen="true" allow="fullscreen; autoplay; gamepad; clipboard-write; magnetometer; gyroscope; accelerometer; payment; picture-in-picture" onload="try{window.__stageLoaded()}catch(e){}"></iframe>';
-  setTimeout(applyMuted,600);
+  $('#stageInner').innerHTML='<iframe class="absolute inset-0 w-full h-full border-0 bg-black" src="'+url+'" frameborder="0" allowfullscreen="true" webkitallowfullscreen="true" mozallowfullscreen="true" allow="fullscreen; autoplay; gamepad; clipboard-write; magnetometer; gyroscope; accelerometer; payment; picture-in-picture" onload="try{window.__stageLoaded();window.__obitoIframeLoaded()}catch(e){}"></iframe>';
+  setTimeout(applyMuted,300);
+  setTimeout(applyMuted,1000);
   setTimeout(applyMuted,2500);
 }
+function refreshSoundButtonCapability(){var btn=$('#soundBtn'),fr=document.querySelector('#stageInner iframe');if(!btn)return;var ok=false;try{ok=!!(fr&&fr.contentWindow&&typeof fr.contentWindow.__obitoSetMuted==='function');}catch(e){ok=false;}btn.classList.toggle('opacity-40',!ok);btn.title=ok?'Silenciar sonido hasta volver a Inicio':'El audio de este juego se controla dentro del propio juego';}
+window.__obitoIframeLoaded=function(){if(state.muted)enforcePageMute();setTimeout(refreshSoundButtonCapability,250);};
 function loadSource(i){
   clearTimeout(stageState.timer);clearInterval(stageState.tick);
   if(i>=stageState.sources.length){cycleSource();return;}
@@ -1348,21 +1543,23 @@ function cycleSource(){
   stageShow('Este juego no responde 😢',true);
 }
 
-function applyOrientation(){
-  var g=state.current;
-  var hint=$('#rotateHint');
-  var box=$('#stageBox');
-  if(!g||state.view!=='game'||!hint||!box)return;
-  var mobile=window.innerWidth<1024;
-  var portrait=window.innerHeight>window.innerWidth;
-  var orient=g.orientation||'auto';
-  hint.classList.toggle('hidden',!(mobile&&portrait&&orient==='horizontal'));
-  box.classList.toggle('stage-portrait',mobile&&portrait&&orient==='auto');
-  box.classList.toggle('stage-tall',mobile&&portrait&&orient==='vertical');
-}
+function fullscreenElement(){return document.fullscreenElement||document.webkitFullscreenElement||document.msFullscreenElement||null;}
+function playerShell(){return $('#gamePlayerShell');}
+function isPseudoFullscreen(){var s=playerShell();return !!(s&&s.classList.contains('obito-pseudo-fullscreen'));}
+function isGameFullscreen(){var s=playerShell();return !!s&&(fullscreenElement()===s||isPseudoFullscreen());}
+function viewportSize(){var vv=window.visualViewport;return {w:Math.max(1,Math.round(vv&&vv.width?vv.width:window.innerWidth)),h:Math.max(1,Math.round(vv&&vv.height?vv.height:window.innerHeight))};}
+function fitStageToViewport(){var g=state.current,hint=$('#rotateHint'),box=$('#stageBox'),wrap=$('#stageWrap');if(!box||!wrap)return;var vp=viewportSize(),mobile=vp.w<1024,portrait=vp.h>vp.w,orient=(g&&g.orientation)||'auto';if(isGameFullscreen()){wrap.style.width='100%';wrap.style.height='100%';wrap.style.maxWidth='none';wrap.style.maxHeight='none';wrap.style.margin='0';wrap.style.paddingTop='0';wrap.style.aspectRatio='auto';if(hint)hint.classList.toggle('hidden',!(mobile&&portrait&&orient==='horizontal'));return;}var ratio=orient==='vertical'?(9/14):((orient==='auto'&&mobile&&portrait)?(3/4):(16/9));var parent=box.parentElement,maxW=Math.max(240,Math.floor(parent?parent.clientWidth:vp.w));var maxH=Math.max(220,vp.h-(mobile?105:145));var w=maxW,h=w/ratio;if(h>maxH){h=maxH;w=h*ratio;}wrap.style.paddingTop='0';wrap.style.aspectRatio='auto';wrap.style.width=Math.round(w)+'px';wrap.style.height=Math.round(h)+'px';wrap.style.maxWidth='100%';wrap.style.maxHeight=Math.round(maxH)+'px';wrap.style.margin='0 auto';if(hint)hint.classList.toggle('hidden',!(mobile&&portrait&&orient==='horizontal'));}
+function applyOrientation(){fitStageToViewport();}
+function lockGameOrientation(){if(!screen.orientation||typeof screen.orientation.lock!=='function'||!state.current)return Promise.resolve();var o=state.current.orientation||'auto';if(o==='horizontal')return screen.orientation.lock('landscape').catch(function(){});if(o==='vertical')return screen.orientation.lock('portrait').catch(function(){});return Promise.resolve();}
+function unlockGameOrientation(){try{if(screen.orientation&&typeof screen.orientation.unlock==='function')screen.orientation.unlock();}catch(e){}}
+function enterPseudoFullscreen(){var s=playerShell();if(!s)return;s.classList.add('obito-pseudo-fullscreen');document.body.classList.add('obito-no-scroll');window.scrollTo(0,0);fitStageToViewport();refreshFullscreenButton();lockGameOrientation();}
+function exitPseudoFullscreen(){var s=playerShell();if(!s)return;s.classList.remove('obito-pseudo-fullscreen');document.body.classList.remove('obito-no-scroll');unlockGameOrientation();fitStageToViewport();refreshFullscreenButton();}
+function refreshFullscreenButton(){var btn=$('#fsBtn');if(btn)btn.innerHTML=icon(isGameFullscreen()?'minimize':'maximize','w-4 h-4');}
+function requestGameFullscreen(){var s=playerShell();if(!s)return;var ua=navigator.userAgent||'';var isiOS=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);if(isiOS){enterPseudoFullscreen();return;}var fn=s.requestFullscreen||s.webkitRequestFullscreen||s.msRequestFullscreen;if(!fn){enterPseudoFullscreen();return;}try{var p=fn.call(s,{navigationUI:'hide'});Promise.resolve(p).then(function(){fitStageToViewport();refreshFullscreenButton();lockGameOrientation();}).catch(function(){enterPseudoFullscreen();});}catch(e){enterPseudoFullscreen();}}
+function exitGameFullscreen(){if(isPseudoFullscreen()){exitPseudoFullscreen();return;}var p=null;try{if(document.exitFullscreen)p=document.exitFullscreen();else if(document.webkitExitFullscreen)p=document.webkitExitFullscreen();else if(document.msExitFullscreen)p=document.msExitFullscreen();}catch(e){}Promise.resolve(p).catch(function(){}).then(function(){unlockGameOrientation();fitStageToViewport();refreshFullscreenButton();});}
 
 function showLauncher(g){
-  state.current=g;soundOn=true;state.muted=false;
+  state.current=g;
   showView('game');
   stopStage();clearOverlayBg();stageHide();
   var logo=logoURL(g)||'';
@@ -1372,8 +1569,60 @@ function showLauncher(g){
     '<a href="'+(Security.sanitizeUrl(g.play_url)||'#')+'" target="_blank" rel="noopener" class="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-500 font-bold shadow-lg shadow-red-800/40 transition">🎮 Jugar en el sitio oficial</a>'+
     '<button id="copyLinkBtn" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold transition">Copiar enlace</button></div>';
   var cb=$('#copyLinkBtn');
-  if(cb)cb.addEventListener('click',function(){try{navigator.clipboard.writeText(g.play_url).then(function(){toast('🔗 Enlace copiado');});}catch(e){toast('Copia el enlace manualmente');}});
+  if(cb)cb.addEventListener('click',function(){copyTextSafe(g.play_url).then(function(){toast('🔗 Enlace copiado');}).catch(function(){toast('No se pudo copiar el enlace');});});
   finishGameView(g);
+}
+
+function gmWalkthroughGameId(g){
+  if(!g)return '';
+  var urls=[];
+  if(Array.isArray(g.sources))urls=urls.concat(g.sources);
+  if(g.embed_url)urls.push(g.embed_url);
+  if(g.play_url)urls.push(g.play_url);
+  for(var i=0;i<urls.length;i++){
+    try{
+      var u=new URL(urls[i],window.location.href);
+      var h=(u.hostname||'').toLowerCase();
+      if(h==='html5.gamemonetize.co'||h==='html5.gamemonetize.com'||h==='html5.gamemonetize.games'){
+        var token=(u.pathname||'').split('/').filter(Boolean)[0]||'';
+        if(/^[a-z0-9]{20,80}$/i.test(token))return token;
+      }
+    }catch(e){}
+  }
+  return '';
+}
+function clearGameMonetizeWalkthrough(){
+  var sec=$('#gmWalkthroughSection'),box=$('#gamemonetize-video');
+  if(box)box.replaceChildren();
+  if(sec)sec.classList.add('hidden');
+}
+function mountGameMonetizeWalkthrough(g){
+  clearGameMonetizeWalkthrough();
+  var gameid=gmWalkthroughGameId(g);
+  if(!gameid)return;
+  var sec=$('#gmWalkthroughSection'),box=$('#gamemonetize-video');
+  if(!sec||!box)return;
+  var domain=(window.location.hostname||'').toLowerCase();
+  // GameMonetize atribuye el walkthrough al dominio registrado. En local se puede
+  // probar el reproductor, pero los informes deben comprobarse en el dominio aprobado.
+  var params=new URLSearchParams({
+    domain:domain,
+    gameid:gameid,
+    getads:'true',
+    color:'#dc2626'
+  });
+  var fr=document.createElement('iframe');
+  fr.id='gamemonetize-walkthrough';
+  fr.src='https://gamemonetize.video/index.php?'+params.toString();
+  fr.title='Guía del juego - GameMonetize';
+  fr.loading='lazy';
+  fr.scrolling='no';
+  fr.frameBorder='0';
+  fr.allowFullscreen=true;
+  fr.setAttribute('allow','autoplay; fullscreen; picture-in-picture');
+  fr.style.cssText='display:block;width:100%;height:480px;border:0;background:#000;';
+  box.replaceChildren(fr);
+  sec.classList.remove('hidden');
 }
 
 function finishGameView(g){
@@ -1388,6 +1637,7 @@ function finishGameView(g){
   $('#crumbTitle').textContent=g.title;
   $('#stageAd').innerHTML=adBanner();
   $('#railAd').innerHTML=adBanner();
+  mountGameMonetizeWalkthrough(g);
   $('#gameInfo').innerHTML=gameInfoHTML(g);
   loadAdScript();refreshAds($('#gameView'));
   loadRail(g);
@@ -1423,15 +1673,17 @@ function appendRail(){
 
 function showView(n){
   if(state.view==='game'&&n!=='game'){
-    stopStage();clearOverlayBg();
+    if(isGameFullscreen())exitGameFullscreen();
+    stopStage();clearOverlayBg();clearGameMonetizeWalkthrough();
     var h=$('#rotateHint');if(h)h.classList.add('hidden');
-    var b=$('#stageBox');if(b){b.classList.remove('stage-portrait');b.classList.remove('stage-tall');}
-    state.muted=false;soundOn=true;
+    unlockGameOrientation();
   }
+  if(n==='home')resetPageMuteOnHome();
   state.view=n;
   $('#homeView').classList.toggle('hidden',n!=='home');
   $('#browseView').classList.toggle('hidden',n!=='browse');
   $('#gameView').classList.toggle('hidden',n!=='game');
+  if(n==='game')setTimeout(fitStageToViewport,0);
 }
 
 function openGame(id){
@@ -1441,7 +1693,7 @@ function openGame(id){
   var done=function(gg){
     var sources=(gg.sources||[]).map(function(u){return (u&&u.charAt(0)==='/')?u:Security.sanitizeUrl(u);}).filter(Boolean);
     if(!sources.length||gg.blocked){showLauncher(gg);return;}
-    state.current=gg;soundOn=true;state.muted=false;
+    state.current=gg;
     showView('game');
     var rec=store.get('obito_recent_games',[]);
     var mini={id:gg.id,title:gg.title,emoji:gg.emoji,gradient:gg.gradient,logo:gg.logo,category:gg.category,embed_url:sources[0],play_url:gg.play_url,active_players:gg.active_players};
@@ -1479,31 +1731,26 @@ function refreshToolbar(){
   $('#soundBtn').innerHTML=icon(state.muted?'volumeX':'volume','w-4 h-4');$('#soundBtn').classList.toggle('on',state.muted);
   $('#reportBtn').innerHTML=icon('flag','w-4 h-4');
   $('#tabBtn').innerHTML=icon('external','w-4 h-4');
-  $('#fsBtn').innerHTML=icon('maximize','w-4 h-4');
+  refreshFullscreenButton();
 }
 
 function updateUserUI(){
-  var user=store.get('obito_user',null);
-  var btn=$('#loginBtn');
-  if(user&&user.email){btn.textContent='👤 '+user.email.split('@')[0];}
-  else{btn.textContent='Iniciar sesión';}
+  var user=store.get('obito_user',null),btn=$('#loginBtn');if(!btn)return;
+  var label=user&&user.email?user.email.split('@')[0]:'Iniciar sesión';
+  btn.innerHTML='<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg><span class="max-w-[9rem] truncate">'+Security.escapeHtml(label)+'</span>';
 }
-function doLogin(email,provider){
-  store.set('obito_user',{email:email,provider:provider||'email',ts:Date.now()});
-  updateUserUI();
-  $('#loginForm').classList.add('hidden');
-  $('#userInfo').classList.remove('hidden');
-  $('#userEmail').textContent=email;
-  toast('✅ Sesión iniciada como '+email);
+function doLogin(email){
+  return authFetch('/auth/email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
+  .then(function(d){
+    setAuthenticatedUser(d.user);$('#loginForm').classList.add('hidden');$('#userInfo').classList.remove('hidden');
+    $('#userEmail').textContent=(d.user&&d.user.email)||email;toast('✅ Sesión iniciada como '+email);return d.user;
+  });
 }
 function doLogout(){
-  store.set('obito_user',null);
-  updateUserUI();
-  $('#userInfo').classList.add('hidden');
-  $('#loginForm').classList.remove('hidden');
-  $('#loginEmail').value='';
-  var b=$('#loginEmailBtn');b.disabled=true;b.classList.add('opacity-50','cursor-not-allowed');
-  toast('👋 Sesión cerrada');
+  authFetch('/auth/logout',{method:'POST'}).catch(function(){}).then(function(){
+    setAuthenticatedUser(null);$('#userInfo').classList.add('hidden');$('#loginForm').classList.remove('hidden');$('#loginEmail').value='';
+    var b=$('#loginEmailBtn');b.disabled=true;b.classList.add('opacity-50','cursor-not-allowed');toast('👋 Sesión cerrada');
+  });
 }
 
 function renderSidebar(cats){
@@ -1681,39 +1928,35 @@ function bindEvents(){
     var url=location.href;
     var title=g?g.title+' - Obito Games':'Obito Games';
     if(navigator.share){navigator.share({title:title,url:url}).then(function(){toast('🔗 Compartido');}).catch(function(){});}
-    else{try{navigator.clipboard.writeText(url).then(function(){toast('🔗 Enlace copiado al portapapeles');});}catch(e){toast('Copia el enlace manualmente');}}
+    else{copyTextSafe(url).then(function(){toast('🔗 Enlace copiado al portapapeles');}).catch(function(){toast('No se pudo copiar el enlace');});}
   });
 
   $('#soundBtn').addEventListener('click',function(){
-    state.muted=!state.muted;
-    soundOn=!state.muted;
-    var ok=setGameMuted(state.muted);
-    refreshToolbar();
-    if(state.muted)toast(ok?'🔇 Sonido silenciado (el juego sigue corriendo)':'🔇 Silencio aplicado al navegador');
-    else toast(ok?'🔊 Sonido activado':'🔊 Sonido activado');
+    var fr=document.querySelector('#stageInner iframe');if(!fr){toast('No hay juego cargado');return;}
+    var controllable=false;try{controllable=!!(fr.contentWindow&&typeof fr.contentWindow.__obitoSetMuted==='function');}catch(e){controllable=false;}
+    if(!controllable){toast('🔊 Este juego controla su audio dentro de un iframe externo. Usa el botón de sonido del propio juego.');return;}
+    if(state.muted){toast('🔇 El sonido permanecerá silenciado hasta volver a Inicio');return;}
+    setPageMuted(true);toast('🔇 Sonido silenciado hasta volver a Inicio');
   });
 
-  $('#reportBtn').addEventListener('click',function(){$('#reportarModal').classList.remove('hidden');$('#reportarModal').classList.add('flex');});
+  $('#reportBtn').addEventListener('click',function(){
+    if(!state.current){toast('No hay juego seleccionado');return;}
+    $('#reportarModal').classList.remove('hidden');$('#reportarModal').classList.add('flex');
+  });
   document.querySelectorAll('.report-reason').forEach(function(btn){
     btn.addEventListener('click',function(){
-      $('#reportarModal').classList.add('hidden');$('#reportarModal').classList.remove('flex');
-      toast('🚩 Reporte enviado. Revisaremos el juego.');
+      var g=state.current;if(!g){toast('No hay juego seleccionado');return;}
+      var reason=(btn.textContent||'').trim();btn.disabled=true;
+      authFetch('/api/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game_id:String(g.id),title:g.title||'',reason:reason})})
+      .then(function(){$('#reportarModal').classList.add('hidden');$('#reportarModal').classList.remove('flex');toast('🚩 Reporte enviado. Revisaremos el juego.');})
+      .catch(function(e){toast('No se pudo enviar el reporte: '+e.message);})
+      .then(function(){btn.disabled=false;});
     });
   });
   $('#closeReportar').addEventListener('click',function(){$('#reportarModal').classList.add('hidden');$('#reportarModal').classList.remove('flex');});
 
   $('#fsBtn').addEventListener('click',function(){
-    var box=$('#stageBox');
-    if(!document.fullscreenElement&&!document.webkitFullscreenElement){
-      if(box.requestFullscreen)box.requestFullscreen();
-      else if(box.webkitRequestFullscreen)box.webkitRequestFullscreen();
-      else if(box.msRequestFullscreen)box.msRequestFullscreen();
-      else toast('Tu navegador no soporta pantalla completa');
-    }else{
-      if(document.exitFullscreen)document.exitFullscreen();
-      else if(document.webkitExitFullscreen)document.webkitExitFullscreen();
-      else if(document.msExitFullscreen)document.msExitFullscreen();
-    }
+    if(isGameFullscreen())exitGameFullscreen();else requestGameFullscreen();
   });
 
   $('#tabBtn').addEventListener('click',function(){
@@ -1724,7 +1967,7 @@ function bindEvents(){
   $('#inviteBtn').addEventListener('click',function(){
     var url=location.href;
     if(navigator.share){navigator.share({title:'Juega conmigo en Obito Games',url:url}).then(function(){toast('🔗 Invitación enviada');}).catch(function(){});}
-    else{try{navigator.clipboard.writeText(url).then(function(){toast('🔗 Enlace copiado. ¡Compártelo con tus amigos!');});}catch(e){toast('Copia el enlace manualmente');}}
+    else{copyTextSafe(url).then(function(){toast('🔗 Enlace copiado. ¡Compártelo con tus amigos!');}).catch(function(){toast('No se pudo copiar el enlace');});}
   });
 
   $('#loginBtn').addEventListener('click',function(){
@@ -1746,15 +1989,21 @@ function bindEvents(){
     else{btn.disabled=true;btn.classList.add('opacity-50','cursor-not-allowed');}
   });
   $('#loginEmailBtn').addEventListener('click',function(){
-    var email=$('#loginEmail').value.trim();
-    if(email.indexOf('@')===-1)return;
-    doLogin(email,'email');
+    var email=$('#loginEmail').value.trim();if(email.indexOf('@')===-1){toast('Correo inválido');return;}
+    var btn=this;btn.disabled=true;
+    doLogin(email).then(function(){$('#loginModal').classList.add('hidden');$('#loginModal').classList.remove('flex');})
+    .catch(function(e){toast('No se pudo iniciar sesión: '+e.message);}).then(function(){btn.disabled=false;});
   });
   document.querySelectorAll('.social-login').forEach(function(btn){
     btn.addEventListener('click',function(){
-      var provider=btn.dataset.provider||'social';
-      var email='jugador_'+Math.random().toString(36).substr(2,6)+'@'+provider+'.com';
-      doLogin(email,provider);
+      var provider=btn.dataset.provider||'';
+      if(provider==='google'){loginGoogle();return;}
+      if(provider==='facebook'){loginFacebook();return;}
+      if(provider==='apple'){
+        if(!AUTH_CONFIG.apple){toast('Apple Login aún no está configurado en Render');return;}
+        window.location.href='/auth/apple/start';return;
+      }
+      toast('Proveedor de inicio de sesión no disponible');
     });
   });
   $('#logoutBtn').addEventListener('click',doLogout);
@@ -1783,7 +2032,7 @@ function bindEvents(){
     });});
   }
   $('#copyFriendCode').addEventListener('click',function(){
-    try{navigator.clipboard.writeText($('#friendCode').textContent).then(function(){toast('📋 Código copiado');});}catch(e){toast('Copia el código manualmente');}
+    copyTextSafe($('#friendCode').textContent).then(function(){toast('📋 Código copiado');}).catch(function(){toast('No se pudo copiar el código');});
   });
   $('#addFriendBtn').addEventListener('click',function(){
     var input=$('#addFriendInput');
@@ -1815,10 +2064,20 @@ function bindEvents(){
 
   $('#crumbHome').addEventListener('click',function(){goHash('');});
   $('#crumbCat').addEventListener('click',function(){if(state.current)goHash('#cat-'+state.current.category);});
-  $('#loadOpen').addEventListener('click',function(){var u=stageState.currentUrl||(state.current&&state.current.play_url);if(u)window.open(u,'_blank','noopener');});
+  $('#loadOpen').addEventListener('click',function(){var u=stageState.currentUrl||(state.current&&state.current.play_url);if(u)window.open(u,'_blank','noopener,noreferrer');else toast('No hay enlace disponible');});
   $('#failRetry').addEventListener('click',function(){loadSource(0);});
-  $('#failOpen').addEventListener('click',function(){var u=stageState.currentUrl||(state.current&&state.current.play_url);if(u)window.open(u,'_blank','noopener');});
+  $('#failOpen').addEventListener('click',function(){var u=stageState.currentUrl||(state.current&&state.current.play_url);if(u)window.open(u,'_blank','noopener,noreferrer');else toast('No hay enlace disponible');});
 
+
+  function onFullscreenChanged(){
+    if(fullscreenElement()!==playerShell()&&!isPseudoFullscreen())unlockGameOrientation();
+    fitStageToViewport();refreshFullscreenButton();
+  }
+  document.addEventListener('fullscreenchange',onFullscreenChanged);
+  document.addEventListener('webkitfullscreenchange',onFullscreenChanged);
+  window.addEventListener('resize',function(){if(state.view==='game')fitStageToViewport();},{passive:true});
+  if(window.visualViewport)window.visualViewport.addEventListener('resize',function(){if(state.view==='game')fitStageToViewport();},{passive:true});
+  window.addEventListener('orientationchange',function(){setTimeout(function(){if(state.view==='game')fitStageToViewport();},150);},{passive:true});
 
   window.addEventListener('scroll',onScroll,{passive:true});
   if('IntersectionObserver' in window){
@@ -1830,14 +2089,16 @@ function bindEvents(){
 
 function init(){
   seoHome();
-  Promise.all([api('/api/categories',{}),api('/api/curated',{})]).then(function(res){
-    CATS=res[0].categories||[];CUR=res[1].games||[];
-    renderSidebar(CATS);
-    renderHeroCategories();
-    renderSeoPopularNav();
-    updateUserUI();
-    bindEvents();
-    route();
+  Promise.all([
+    api('/api/categories',{}),
+    api('/api/curated',{}),
+    api('/api/config',{}).catch(function(){return {};}),
+    api('/auth/me',{}, {skipCache:true}).catch(function(){return {user:null};})
+  ]).then(function(res){
+    CATS=res[0].categories||[];CUR=res[1].games||[];AUTH_CONFIG=res[2]||{};
+    if(res[3]&&res[3].user)store.set('obito_user',res[3].user);else store.set('obito_user',null);
+    renderSidebar(CATS);renderHeroCategories();renderSeoPopularNav();updateUserUI();bindEvents();route();
+    setTimeout(function(){if(state.view==='game')fitStageToViewport();},0);
   }).catch(function(err){
     console.error('Init error:',err);
     $('#homeRows').innerHTML='<div class="p-8 text-center"><p class="text-red-400 mb-4 font-semibold">Error al cargar la aplicación. Verifica tu conexión.</p><button onclick="location.reload()" class="px-6 py-2 bg-red-600 rounded-lg hover:bg-red-500 transition font-bold">Reintentar</button></div>';

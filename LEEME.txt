@@ -1,0 +1,8 @@
+OBITO GAMES - FIX
+
+- itch.io: eliminados de la BD actual los enlaces de landing que rechazaban iframe.
+- actualizar_juegos.py ahora busca el iframe HTML5 real alojado en itch.zone y descarta lo demás.
+- curados c1..cN antiguos retirados; manual_* se preservan.
+- fullscreen móvil: Fullscreen API + fallback visual 100dvh para iOS/navegadores sin soporte.
+- audio: los iframes externos cross-origin no pueden mutearse universalmente desde la página padre. El botón ya no finge que silenció cuando el navegador lo impide.
+- ads.txt conservado. Falta el snippet/tag exacto del bloque de anuncios de GameMonetize; ads.txt por sí solo no dibuja anuncios.
