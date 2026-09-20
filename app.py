@@ -21,9 +21,9 @@ except ImportError:
 app = Flask(__name__)
 DB_FILE = "juegos.db"
 THUMB_DIR = os.path.join("static", "thumbs", "curated")
-GM_RANK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gm_ranking.json")
 
 MI_DOMINIO = ""
+
 GOOGLE_CLIENT_ID = ""
 FACEBOOK_APP_ID = ""
 FACEBOOK_APP_SECRET = ""
@@ -32,11 +32,14 @@ APPLE_CLIENT_ID = ""
 SECRET_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "secret_key.txt")
 def _load_secret():
     env = os.environ.get("SECRET_KEY")
-    if env: return env
+    if env:
+        return env
     if os.path.exists(SECRET_FILE):
-        with open(SECRET_FILE) as f: return f.read().strip()
+        with open(SECRET_FILE) as f:
+            return f.read().strip()
     s = secrets.token_hex(32)
-    with open(SECRET_FILE, "w") as f: f.write(s)
+    with open(SECRET_FILE, "w") as f:
+        f.write(s)
     return s
 app.secret_key = _load_secret()
 
@@ -44,13 +47,16 @@ MANUAL_PHOTOS = {
     "Smash Karts": "https://imgs.crazygames.com/smash-karts_16x9/20260210123937/smash-karts_16x9-cover?metadata=none&quality=100&width=1200&height=630&fit=crop",
 }
 
+# ===== CURADOS (se removieron 2048, Hole.io, Paper.io 2, Agar.io por no funcionar) =====
 ORIENT_CURATED = {
     "Smash Karts": "horizontal", "1v1.LOL": "horizontal", "Venge.io": "horizontal",
-    "Slither.io": "auto", "Shell Shockers": "horizontal", "ZombsRoyale.io": "horizontal",
-    "Skribbl.io": "horizontal", "Diep.io": "auto", "Krunker.io": "horizontal",
-    "Little Big Snake": "auto", "EvoWars.io": "auto", "Surviv.io": "horizontal",
+    "Slither.io": "auto", "Shell Shockers": "horizontal",
+    "ZombsRoyale.io": "horizontal", "Skribbl.io": "horizontal", "Diep.io": "auto",
+    "Krunker.io": "horizontal", "Little Big Snake": "auto",
+    "EvoWars.io": "auto", "Surviv.io": "horizontal",
     "Wings.io": "horizontal", "Bonk.io": "horizontal", "Gartic Phone": "horizontal",
-    "Flappy Bird": "auto", "Pac-Man": "horizontal", "Tetris": "auto", "Hextris": "auto",
+    "Flappy Bird": "auto", "Pac-Man": "horizontal",
+    "Tetris": "auto", "Hextris": "auto",
 }
 HORIZ_CATS = {"accion", "disparos", "io", "conducir", "deportes", "simulacion"}
 
@@ -103,7 +109,7 @@ GRADIENTS = {
     "trivia": "from-yellow-700 to-black",
 }
 
-# Curados externos (van ABAJO ligados; NUNCA en el mosaico superior)
+# ===== CURADOS FUNCIONALES (sin 2048/Hole.io/Paper.io2/Agar.io) =====
 CURATED_RAW = [
     ("Smash Karts", "io", "io", "🏎️", ["https://smashkarts.io/"], 980000, 1500000),
     ("1v1.LOL", "batalla", "disparos", "🔫", ["https://1v1.lol/"], 950000, 1400000),
@@ -156,15 +162,19 @@ def con_proxy(u):
 
 _frame_cache = {}
 
+
 def fuente_embebible(url):
-    if not http_requests: return True
-    if url in _frame_cache: return _frame_cache[url]
+    if not http_requests:
+        return True
+    if url in _frame_cache:
+        return _frame_cache[url]
     ok = True
     try:
         r = http_requests.get(url, headers=UA, timeout=8, stream=True)
         xfo = (r.headers.get("X-Frame-Options") or "").strip().lower()
         csp = (r.headers.get("Content-Security-Policy") or "").lower()
-        if xfo in ("deny", "sameorigin") or "frame-ancestors" in csp: ok = False
+        if xfo in ("deny", "sameorigin") or "frame-ancestors" in csp:
+            ok = False
         r.close()
     except Exception:
         ok = True
@@ -173,69 +183,82 @@ def fuente_embebible(url):
 
 
 def orden_fuentes(base_src, check=False):
-    if not base_src: return []
-    seen = set(); res = []
+    """Auto-ordena fuentes: embebibles directas primero; bloqueadas vía proxy después."""
+    if not base_src:
+        return []
+    seen = set()
+    res = []
     def add(s):
-        if s and s not in seen: seen.add(s); res.append(s)
+        if s and s not in seen:
+            seen.add(s)
+            res.append(s)
     if not check:
-        for s in base_src: add(s)
+        # GD/GM: directa primero (diseñadas para iframe), proxy de respaldo al final
+        for s in base_src:
+            add(s)
         add(con_proxy(base_src[0]))
         return res
+    # Curados: verificar embebibilidad real y elegir la mejor automáticamente
     directas = [s for s in base_src if fuente_embebible(s)]
     bloqueadas = [s for s in base_src if not fuente_embebible(s)]
-    for s in directas: add(s)
-    if not directas and bloqueadas: add(con_proxy(bloqueadas[0]))
-    for s in bloqueadas: add(con_proxy(s))
+    for s in directas:
+        add(s)
+    if not directas and bloqueadas:
+        add(con_proxy(bloqueadas[0]))
+    for s in bloqueadas:
+        add(con_proxy(s))
     return res
 
 
-# ===== RANKING GAMEMONETIZE (popularidad real) =====
-_gm_rank = None
-def cargar_ranking_gm():
-    global _gm_rank
-    if _gm_rank is not None: return _gm_rank
-    if os.path.exists(GM_RANK_FILE):
-        try:
-            with open(GM_RANK_FILE) as f:
-                _gm_rank = json.load(f); return _gm_rank
-        except Exception: pass
-    _gm_rank = {}
+# ===== TENDENCIAS GAMEMONETIZE =====
+TRENDING_CACHE = {"ids": [], "ts": 0}
+
+def fetch_gamemonetize_trending(num=50):
+    """Consulta la API de GameMonetize y devuelve ids ordenados por popularidad."""
+    now = time.time()
+    if TRENDING_CACHE["ids"] and (now - TRENDING_CACHE["ts"]) < 3600:
+        return TRENDING_CACHE["ids"]
+    ids = []
     if http_requests:
         try:
-            r = http_requests.get("https://gamemonetize.com/feed.php?format=0&num=38000",
-                                  headers=UA, timeout=30)
+            r = http_requests.get(f"https://gamemonetize.com/feed.php?format=0&num={num}",
+                                  headers=UA, timeout=10)
+            txt = r.text
             try:
-                data = json.loads(r.text)
+                data = json.loads(txt)
+                items = data if isinstance(data, list) else \
+                        data.get("games", data.get("items", data.get("channel", {}).get("item", [])))
+                for it in items:
+                    if isinstance(it, dict):
+                        gid = it.get("id") or it.get("game_id") or ""
+                        if gid:
+                            ids.append(str(gid))
             except Exception:
-                data = None
-            items = []
-            if isinstance(data, list): items = data
-            elif isinstance(data, dict):
-                items = data.get("games", data.get("items", data.get("channel", {}).get("item", [])))
-            for i, it in enumerate(items):
-                if isinstance(it, dict):
-                    gid = str(it.get("id") or it.get("game_id") or "")
-                    if gid: _gm_rank[gid] = i
-            if _gm_rank:
-                with open(GM_RANK_FILE, "w") as f: json.dump(_gm_rank, f)
+                ids = re.findall(r'<id>(\d+)</id>', txt) or re.findall(r'"id"\s*:\s*"?(\d+)"?', txt)
         except Exception:
-            _gm_rank = {}
-    return _gm_rank
+            ids = []
+    TRENDING_CACHE["ids"] = ids
+    TRENDING_CACHE["ts"] = now
+    return ids
 
 
 def descargar_imagen_directa(url, destino):
-    if not http_requests: return False
+    if not http_requests:
+        return False
     try:
         ri = http_requests.get(url, headers=UA, timeout=25)
         if ri.status_code == 200 and len(ri.content) > 15000:
-            with open(destino, "wb") as f: f.write(ri.content)
+            with open(destino, "wb") as f:
+                f.write(ri.content)
             return True
-    except Exception: pass
+    except Exception:
+        pass
     return False
 
 
 def descargar_og_image(url, destino):
-    if not http_requests: return False
+    if not http_requests:
+        return False
     try:
         r = http_requests.get(url, headers=UA, timeout=12, allow_redirects=True)
         html = r.text[:400000]
@@ -249,15 +272,20 @@ def descargar_og_image(url, destino):
         img = None
         for p in pats:
             m = re.search(p, html, re.I)
-            if m: img = m.group(1); break
-        if not img: return False
+            if m:
+                img = m.group(1)
+                break
+        if not img:
+            return False
         img = urljoin(url, img)
         ri = http_requests.get(img, headers=UA, timeout=20)
         ct = ri.headers.get("Content-Type", "")
         if ri.status_code == 200 and len(ri.content) > 15000 and ("image" in ct or img.endswith((".jpg", ".png", ".webp"))):
-            with open(destino, "wb") as f: f.write(ri.content)
+            with open(destino, "wb") as f:
+                f.write(ri.content)
             return True
-    except Exception: pass
+    except Exception:
+        pass
     return False
 
 
@@ -267,22 +295,31 @@ def ensure_curated_thumbs():
     sources = {}
     if os.path.exists(marker_path):
         try:
-            with open(marker_path) as f: sources = json.load(f)
-        except Exception: sources = {}
+            with open(marker_path) as f:
+                sources = json.load(f)
+        except Exception:
+            sources = {}
     ok = set()
     for i, (title, tag, cat, em, srcs, pl, lk) in enumerate(CURATED_RAW, start=1):
         path = os.path.join(THUMB_DIR, f"c{i}.jpg")
         want = MANUAL_PHOTOS.get(title)
         have = os.path.exists(path) and os.path.getsize(path) > 15000
         if have:
-            ok.add(f"c{i}"); sources[f"c{i}"] = sources.get(f"c{i}") or (want or "og"); continue
-        done = descargar_imagen_directa(want, path) if want else False
-        if not done: done = descargar_og_image(srcs[0], path)
-        if done:
-            sources[f"c{i}"] = want or "og"; ok.add(f"c{i}")
-        else:
             ok.add(f"c{i}")
-    with open(marker_path, "w") as f: json.dump(sources, f)
+            sources[f"c{i}"] = sources.get(f"c{i}") or (want or "og")
+            continue
+        print(f"   🖼️  Descargando foto de {title}...")
+        done = descargar_imagen_directa(want, path) if want else False
+        if not done:
+            done = descargar_og_image(srcs[0], path)
+        if done:
+            sources[f"c{i}"] = want or "og"
+            ok.add(f"c{i}")
+        else:
+            print(f"   ⚠️  {title} sin foto → se mantiene con emoji/gradiente")
+            ok.add(f"c{i}")
+    with open(marker_path, "w") as f:
+        json.dump(sources, f)
     return ok
 
 
@@ -290,13 +327,16 @@ _ok = ensure_curated_thumbs()
 
 CURATED = []
 for i, (t, tag, cat, em, sources, pl, lk) in enumerate(CURATED_RAW, start=1):
-    if f"c{i}" not in _ok: continue
+    if f"c{i}" not in _ok:
+        continue
     full = orden_fuentes(sources, check=True)
+    logo_path = f"/static/thumbs/curated/c{i}.jpg"
     local_path = os.path.join(THUMB_DIR, f"c{i}.jpg")
-    logo = f"/static/thumbs/curated/c{i}.jpg" if os.path.exists(local_path) and os.path.getsize(local_path) > 15000 else None
+    logo = logo_path if os.path.exists(local_path) and os.path.getsize(local_path) > 15000 else None
     CURATED.append({
         "id": f"c{i}", "title": t, "tag": tag, "category": cat, "emoji": em,
-        "gradient": GRADIENTS.get(cat, "from-zinc-800 to-black"), "logo": logo,
+        "gradient": GRADIENTS.get(cat, "from-zinc-800 to-black"),
+        "logo": logo,
         "sources": full, "embed_url": full[0], "play_url": sources[0],
         "active_players": pl, "likes": lk, "sections": [],
         "desc": f"{t} — juega gratis en Obito Games.",
@@ -306,13 +346,17 @@ _cache = {"db": [], "curated": {}, "stream": [], "counts": {}, "by_title": {}, "
 
 
 def mapear_categoria(raw):
-    return CAT_MAP.get(str(raw or "").split(",")[0].strip().lower(), "arcade")
+    primera = str(raw or "").split(",")[0].strip().lower()
+    return CAT_MAP.get(primera, "arcade")
+
 
 def pseudo(seed, base, spread):
     return base + (zlib.crc32(seed.encode()) % spread)
 
+
 def norm_title(t):
     return ''.join(ch for ch in (t or '').lower() if ch.isalnum())
+
 
 def construir_fuentes(gid, stored_url):
     stored = (stored_url or "").strip()
@@ -322,13 +366,14 @@ def construir_fuentes(gid, stored_url):
         cand = [f"https://html5.gamedistribution.com/{gid}/", stored]
     out = []
     for c in cand:
-        if c and c.startswith("http") and c not in out: out.append(c)
+        if c and c.startswith("http") and c not in out:
+            out.append(c)
     return out
 
 
 def asegurar_columnas(conn):
     cols = [r[1] for r in conn.execute("PRAGMA table_info(juegos)")]
-    for col, tipo in (("tag", "TEXT"), ("fuente", "TEXT"), ("sources", "TEXT"), ("orientacion", "TEXT"), ("score", "REAL")):
+    for col, tipo in (("tag", "TEXT"), ("fuente", "TEXT"), ("sources", "TEXT"), ("orientacion", "TEXT")):
         if col not in cols:
             conn.execute(f"ALTER TABLE juegos ADD COLUMN {col} {tipo}")
     conn.commit()
@@ -350,23 +395,26 @@ def sync_curated():
             imagen_url=excluded.imagen_url, iframe_url=excluded.iframe_url, tag=excluded.tag,
             fuente=excluded.fuente, sources=excluded.sources""",
             (g["id"], g["title"], g["desc"], g["category"], g["logo"] or "", g["embed_url"], g["tag"], "curado", "|".join(g["sources"])))
-    conn.commit(); conn.close()
-    print(f"💾 {len(CURATED)} curados sincronizados en juegos.db")
+    conn.commit()
+    conn.close()
+    print(f"💾 {len(CURATED)} juegos oficiales sincronizados en juegos.db")
 
 
 def cargar_cache():
-    if _cache["ready"]: return True
+    if _cache["ready"]:
+        return True
     if not os.path.exists(DB_FILE):
-        print(f"❌ No existe '{DB_FILE}'"); return False
+        print(f"❌ No existe '{DB_FILE}' en {os.getcwd()}")
+        return False
     sync_curated()
-    conn = sqlite3.connect(DB_FILE); conn.row_factory = sqlite3.Row
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
     cols = [r[1] for r in conn.execute("PRAGMA table_info(juegos)")]
     has_orient = "orientacion" in cols
     rows = conn.execute("SELECT * FROM juegos ORDER BY rowid").fetchall()
     conn.close()
     print(f"📚 Leyendo {len(rows)} juegos...")
 
-    gm_rank = cargar_ranking_gm()
     db, curated, counts, by_title = [], {}, {}, {}
     for r in rows:
         gid = str(r["id"])
@@ -384,47 +432,60 @@ def cargar_cache():
                 "play_url": next((s for s in raw if s and s.startswith("http")), None),
                 "active_players": base["active_players"] if base else 1000,
                 "likes": base["likes"] if base else 1000,
-                "sections": [], "desc": r["descripcion"] or "", "blocked": False, "es_curado": True,
+                "sections": [], "desc": r["descripcion"] or "", "blocked": False,
                 "orientation": ORIENT_CURATED.get(r["titulo"], "horizontal" if mapear_categoria(r["categoria"]) in HORIZ_CATS else "auto"),
             }
             curated[gid] = g
         else:
             if not imagen:
-                imagen = f"https://img.gamemonetize.com/{gid[3:]}/512x384.jpg" if gid.startswith("gm_") else f"https://img.gamedistribution.com/{gid}.jpg"
+                if gid.startswith("gm_"):
+                    imagen = f"https://img.gamemonetize.com/{gid[3:]}/512x384.jpg"
+                else:
+                    imagen = f"https://img.gamedistribution.com/{gid}.jpg"
             slug = mapear_categoria(r["categoria"])
             base_src = construir_fuentes(gid, r["iframe_url"])
             full = orden_fuentes(base_src, check=False)
-            raw_id = gid[3:] if gid.startswith("gm_") else gid
-            rank = gm_rank.get(raw_id, gm_rank.get(gid))
-            score = (10_000_000 - rank) if rank is not None else float(pseudo(gid, 300, 12000))
             g = {
                 "id": len(db) + 1, "gd_id": gid, "title": r["titulo"] or "Sin título",
                 "category": slug, "emoji": EMOJIS.get(slug, "🎮"),
-                "gradient": GRADIENTS.get(slug, "from-zinc-800 to-black"), "logo": imagen,
+                "gradient": GRADIENTS.get(slug, "from-zinc-800 to-black"),
+                "logo": imagen,
                 "active_players": pseudo(gid, 300, 12000),
                 "likes": pseudo(gid + "likes", 5000, 900000),
                 "sections": [], "play_url": (base_src[0] if base_src else None),
                 "embed_url": full[0] if full else None, "sources": full,
                 "desc": (r["descripcion"] or "Juega gratis en Obito Games.")[:220],
-                "blocked": False, "es_curado": False, "score": score,
+                "blocked": False,
                 "orientation": (r["orientacion"] if (has_orient and r["orientacion"]) else ("horizontal" if slug in HORIZ_CATS else "auto")),
             }
             db.append(g)
         counts[g["category"]] = counts.get(g["category"], 0) + 1
         by_title.setdefault(norm_title(g["title"]), []).append(g)
 
-    # ===== ORDEN: GameMonetize mejor→peor; curados ligados ABAJO cada 20 =====
-    gm_sorted = sorted(db, key=lambda x: x.get("score", 0), reverse=True)
-    cur_sorted = sorted(curated.values(), key=lambda x: x["active_players"], reverse=True)
-    stream = []
-    gi = ci = 0
-    while gi < len(gm_sorted) or ci < len(cur_sorted):
-        for _ in range(20):
-            if gi < len(gm_sorted): stream.append(gm_sorted[gi]); gi += 1
-        if ci < len(cur_sorted): stream.append(cur_sorted[ci]); ci += 1
+    # ===== TENDENCIAS: GameMonetize populares primero, ligados con curados =====
+    trending_ids = fetch_gamemonetize_trending()
+    trank = {gid: i for i, gid in enumerate(trending_ids)}
+    for g in db:
+        raw_id = g["gd_id"][3:] if g["gd_id"].startswith("gm_") else g["gd_id"]
+        g["trending"] = trank.get(raw_id, trank.get(g["gd_id"]))
+
+    trend_games = sorted([g for g in db if g.get("trending") is not None], key=lambda x: x["trending"])
+    rest_games = sorted([g for g in db if g.get("trending") is None], key=lambda x: x["active_players"], reverse=True)
+    cur_list = sorted(curated.values(), key=lambda x: x["active_players"], reverse=True)
+
+    # Top intercalado: 2 tendencias + 1 curado (liga famosos con curados)
+    top = []
+    ti = cj = 0
+    while ti < len(trend_games) or cj < len(cur_list):
+        for _ in range(2):
+            if ti < len(trend_games):
+                top.append(trend_games[ti]); ti += 1
+        if cj < len(cur_list):
+            top.append(cur_list[cj]); cj += 1
+    stream = top + rest_games
 
     _cache["db"], _cache["curated"], _cache["stream"], _cache["counts"], _cache["by_title"], _cache["ready"] = db, curated, stream, counts, by_title, True
-    print(f"✅ Caché: {len(stream)} juegos | GM ordenados: {len(gm_sorted)} | curados ligados: {len(cur_sorted)}")
+    print(f"✅ Caché lista: {len(stream)} juegos | {len(trend_games)} tendencias GM | {len(cur_list)} curados")
     return True
 
 
@@ -432,213 +493,267 @@ def cargar_cache():
 def ensure_users():
     conn = sqlite3.connect(DB_FILE)
     conn.execute("""CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, provider TEXT NOT NULL, provider_id TEXT NOT NULL,
-        email TEXT, name TEXT, avatar TEXT, password_hash TEXT,
-        created_at TEXT DEFAULT (datetime('now')), UNIQUE(provider, provider_id))""")
-    cols = [r[1] for r in conn.execute("PRAGMA table_info(users)")]
-    if "password_hash" not in cols:
-        try: conn.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
-        except Exception: pass
-    conn.commit(); conn.close()
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider TEXT NOT NULL, provider_id TEXT NOT NULL,
+        email TEXT, name TEXT, avatar TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(provider, provider_id))""")
+    conn.commit()
+    conn.close()
 
-def hash_password(password, salt=None):
-    if salt is None: salt = secrets.token_hex(16)
-    h = hashlib_pbkdf2(password, salt)
-    return f"{salt}${h}"
 
-def hashlib_pbkdf2(password, salt):
-    import hashlib
-    return hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000).hex()
-
-def verify_password(password, stored):
-    try:
-        salt, _ = stored.split("$"); import hmac
-        return hmac.compare_digest(hash_password(password, salt), stored)
-    except Exception: return False
-
-def upsert_user(provider, pid, email, name, avatar, password_hash=None):
-    conn = sqlite3.connect(DB_FILE); conn.row_factory = sqlite3.Row
+def upsert_user(provider, pid, email, name, avatar):
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
     row = conn.execute("SELECT * FROM users WHERE provider=? AND provider_id=?", (provider, pid)).fetchone()
     if row:
-        if password_hash:
-            conn.execute("UPDATE users SET email=?,name=?,avatar=?,password_hash=? WHERE id=?", (email,name,avatar,password_hash,row["id"]))
-        else:
-            conn.execute("UPDATE users SET email=?,name=?,avatar=? WHERE id=?", (email,name,avatar,row["id"]))
-        uid = row["id"]; conn.commit()
+        conn.execute("UPDATE users SET email=?, name=?, avatar=? WHERE id=?", (email, name, avatar, row["id"]))
+        uid = row["id"]
+        conn.commit()
     else:
-        cur = conn.execute("INSERT INTO users (provider,provider_id,email,name,avatar,password_hash) VALUES (?,?,?,?,?,?)",
-                           (provider,pid,email,name,avatar,password_hash))
-        uid = cur.lastrowid; conn.commit()
+        cur = conn.execute("INSERT INTO users (provider,provider_id,email,name,avatar) VALUES (?,?,?,?,?)",
+                           (provider, pid, email, name, avatar))
+        uid = cur.lastrowid
+        conn.commit()
     conn.close()
     return {"id": uid, "provider": provider, "email": email, "name": name, "avatar": avatar}
 
-def find_user_by_email(email):
-    conn = sqlite3.connect(DB_FILE); conn.row_factory = sqlite3.Row
-    row = conn.execute("SELECT * FROM users WHERE email=?", (email.lower(),)).fetchone()
-    conn.close()
-    return dict(row) if row else None
 
 def verify_google(credential):
-    if not http_requests: return None
+    if not http_requests:
+        return None
     try:
         r = http_requests.get("https://oauth2.googleapis.com/tokeninfo", params={"id_token": credential}, timeout=10).json()
-        if GOOGLE_CLIENT_ID and r.get("aud") != GOOGLE_CLIENT_ID: return None
-        return r if "sub" in r else None
-    except Exception: return None
+        if GOOGLE_CLIENT_ID and r.get("aud") != GOOGLE_CLIENT_ID:
+            return None
+        if "sub" not in r:
+            return None
+        return r
+    except Exception:
+        return None
+
 
 def verify_facebook(token):
-    if not http_requests: return None
+    if not http_requests:
+        return None
     try:
         if FACEBOOK_APP_SECRET:
             app_token = f"{FACEBOOK_APP_ID}|{FACEBOOK_APP_SECRET}"
-            dbg = http_requests.get("https://graph.facebook.com/debug_token", params={"input_token": token, "access_token": app_token}, timeout=10).json()
-            if not dbg.get("data", {}).get("is_valid"): return None
-        me = http_requests.get("https://graph.facebook.com/me", params={"fields": "id,name,email,picture", "access_token": token}, timeout=10).json()
-        return me if "id" in me else None
-    except Exception: return None
+            dbg = http_requests.get("https://graph.facebook.com/debug_token",
+                               params={"input_token": token, "access_token": app_token}, timeout=10).json()
+            if not dbg.get("data", {}).get("is_valid"):
+                return None
+            if FACEBOOK_APP_ID and dbg["data"].get("app_id") != FACEBOOK_APP_ID:
+                return None
+        me = http_requests.get("https://graph.facebook.com/me",
+                          params={"fields": "id,name,email,picture", "access_token": token}, timeout=10).json()
+        if "id" not in me:
+            return None
+        return me
+    except Exception:
+        return None
+
 
 def verify_apple_id_token(token):
-    if not jwt or not http_requests: return None
+    if not jwt or not http_requests:
+        return None
     try:
         headers = jwt.get_unverified_header(token)
         keys = http_requests.get("https://appleid.apple.com/auth/keys", timeout=10).json()["keys"]
         key = next((k for k in keys if k["kid"] == headers.get("kid")), None)
-        if not key: return None
+        if not key:
+            return None
         pub = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
-        payload = jwt.decode(token, pub, algorithms=["RS256"], audience=APPLE_CLIENT_ID or None, options={"verify_aud": bool(APPLE_CLIENT_ID)})
-        return payload if payload.get("iss") == "https://appleid.apple.com" else None
-    except Exception: return None
+        payload = jwt.decode(token, pub, algorithms=["RS256"],
+                             audience=APPLE_CLIENT_ID or None,
+                             options={"verify_aud": bool(APPLE_CLIENT_ID)})
+        if payload.get("iss") != "https://appleid.apple.com":
+            return None
+        return payload
+    except Exception:
+        return None
 
 
 # ===== RUTAS =====
 @app.route('/')
-def home(): return render_template('index.html')
+def home():
+    return render_template('index.html')
+
 
 @app.route('/ads.txt')
 def ads_txt():
-    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ads.txt")
-    if os.path.exists(p):
-        with open(p) as f: return f.read(), 200, {"Content-Type": "text/plain"}
+    ads_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ads.txt")
+    if os.path.exists(ads_path):
+        with open(ads_path, 'r') as f:
+            return f.read(), 200, {"Content-Type": "text/plain"}
     abort(404)
 
+
 @app.route('/robots.txt')
-def robots(): return "User-agent: *\nAllow: /\n", 200, {"Content-Type": "text/plain"}
+def robots():
+    return "User-agent: *\nAllow: /\n", 200, {"Content-Type": "text/plain"}
+
 
 @app.route('/api/config')
-def api_config(): return jsonify({"google": GOOGLE_CLIENT_ID, "facebook": FACEBOOK_APP_ID, "apple": APPLE_CLIENT_ID})
+def api_config():
+    return jsonify({"google": GOOGLE_CLIENT_ID, "facebook": FACEBOOK_APP_ID, "apple": APPLE_CLIENT_ID})
+
 
 @app.route('/auth/google', methods=['POST'])
 def auth_google():
-    info = verify_google((request.json or {}).get("credential", ""))
-    if not info: return jsonify({"ok": False, "error": "Token de Google inválido"})
+    cred = (request.json or {}).get("credential", "")
+    info = verify_google(cred)
+    if not info:
+        return jsonify({"ok": False, "error": "Token de Google inválido"})
     user = upsert_user("google", info.get("sub"), info.get("email"), info.get("name"), info.get("picture"))
-    session["user"] = user; return jsonify({"ok": True, "user": user})
+    session["user"] = user
+    return jsonify({"ok": True, "user": user})
+
 
 @app.route('/auth/facebook', methods=['POST'])
 def auth_facebook():
-    me = verify_facebook((request.json or {}).get("access_token", ""))
-    if not me: return jsonify({"ok": False, "error": "Token de Facebook inválido"})
+    tok = (request.json or {}).get("access_token", "")
+    me = verify_facebook(tok)
+    if not me:
+        return jsonify({"ok": False, "error": "Token de Facebook inválido"})
     pic = me.get("picture", {}).get("data", {}).get("url")
     user = upsert_user("facebook", me.get("id"), me.get("email"), me.get("name"), pic)
-    session["user"] = user; return jsonify({"ok": True, "user": user})
+    session["user"] = user
+    return jsonify({"ok": True, "user": user})
+
 
 @app.route('/auth/apple/callback', methods=['POST'])
 def auth_apple_callback():
-    payload = verify_apple_id_token(request.form.get("id_token") or "")
-    if not payload: return "Apple login inválido", 400
-    email = payload.get("email"); name = email.split("@")[0] if email else "Usuario Apple"
+    id_token = request.form.get("id_token") or ""
+    payload = verify_apple_id_token(id_token)
+    if not payload:
+        return "Apple login inválido", 400
+    email = payload.get("email")
+    name = email.split("@")[0] if email else "Usuario Apple"
+    user_json = request.form.get("user")
+    if user_json:
+        try:
+            nj = json.loads(user_json)
+            nm = nj.get("name", {})
+            if nm:
+                name = (nm.get("firstName", "") + " " + nm.get("lastName", "")).strip() or name
+        except Exception:
+            pass
     user = upsert_user("apple", payload.get("sub"), email, name, None)
-    session["user"] = user; return redirect("/")
+    session["user"] = user
+    return redirect("/")
 
-@app.route('/auth/register', methods=['POST'])
-def auth_register():
-    d = request.json or {}
-    email = (d.get("email") or "").strip().lower(); password = d.get("password") or ""; name = (d.get("name") or "").strip()
-    if not email or "@" not in email: return jsonify({"ok": False, "error": "Correo inválido"})
-    if len(password) < 6: return jsonify({"ok": False, "error": "Contraseña mínima 6 caracteres"})
-    if find_user_by_email(email): return jsonify({"ok": False, "error": "Este correo ya está registrado"})
-    user = upsert_user("email", email, email, name or email.split("@")[0], None, password_hash=hash_password(password))
-    session["user"] = user; return jsonify({"ok": True, "user": user})
 
-@app.route('/auth/login', methods=['POST'])
-def auth_login():
-    d = request.json or {}
-    email = (d.get("email") or "").strip().lower(); password = d.get("password") or ""
-    u = find_user_by_email(email)
-    if not u or not u.get("password_hash") or not verify_password(password, u["password_hash"]):
-        return jsonify({"ok": False, "error": "Correo o contraseña incorrectos"})
-    session["user"] = {"id": u["id"], "provider": u["provider"], "email": u["email"], "name": u["name"], "avatar": u["avatar"]}
-    return jsonify({"ok": True, "user": session["user"]})
+@app.route('/auth/email', methods=['POST'])
+def auth_email():
+    email = (request.json or {}).get("email", "").strip().lower()
+    if "@" not in email:
+        return jsonify({"ok": False, "error": "Correo inválido"})
+    user = upsert_user("email", email, email, email.split("@")[0], None)
+    session["user"] = user
+    return jsonify({"ok": True, "user": user})
+
 
 @app.route('/auth/me')
-def auth_me(): return jsonify({"user": session.get("user")})
+def auth_me():
+    return jsonify({"user": session.get("user")})
+
 
 @app.route('/auth/logout', methods=['POST'])
 def auth_logout():
-    session.pop("user", None); return jsonify({"ok": True})
+    session.pop("user", None)
+    return jsonify({"ok": True})
+
 
 @app.route('/api/games')
 def get_games():
-    if not cargar_cache(): return jsonify({'success': False, 'games': [], 'total': 0, 'count': 0})
+    if not cargar_cache():
+        return jsonify({'success': False, 'games': [], 'total': 0, 'count': 0})
     games = _cache["stream"]
-    category = request.args.get('category'); search = (request.args.get('search') or '').lower()
-    if category: games = [g for g in games if g['category'] == category]
-    if search: games = [g for g in games if search in g['title'].lower()]
-    total = len(games); offset = max(0, int(request.args.get('offset', 0))); limit = int(request.args.get('limit', 0)) or total
-    return jsonify({'success': True, 'count': min(limit, max(total-offset,0)), 'total': total, 'offset': offset, 'games': games[offset:offset+limit]})
+    category = request.args.get('category')
+    search = request.args.get('search', '').lower()
+    if category:
+        games = [g for g in games if g['category'] == category]
+    if search:
+        games = [g for g in games if search in g['title'].lower()]
+    total = len(games)
+    offset = max(0, int(request.args.get('offset', 0)))
+    limit = int(request.args.get('limit', 0)) or total
+    return jsonify({'success': True, 'count': min(limit, max(total - offset, 0)), 'total': total, 'offset': offset, 'games': games[offset:offset + limit]})
+
 
 @app.route('/api/curated')
 def get_curated():
-    if not cargar_cache(): return jsonify({'success': True, 'games': []})
+    if not cargar_cache():
+        return jsonify({'success': True, 'games': []})
     return jsonify({'success': True, 'games': sorted(_cache["curated"].values(), key=lambda x: x["active_players"], reverse=True)})
+
 
 @app.route('/api/game/<game_id>')
 def get_game(game_id):
-    if not cargar_cache(): abort(500)
+    if not cargar_cache():
+        abort(500)
     if str(game_id).startswith('c'):
         g = _cache["curated"].get(game_id)
-        if not g: abort(404)
+        if not g:
+            abort(404)
         return jsonify({'success': True, 'game': g, 'alternativas': []})
-    try: idx = int(game_id) - 1
-    except ValueError: abort(404)
-    if not (0 <= idx < len(_cache["db"])): abort(404)
+    try:
+        idx = int(game_id) - 1
+    except ValueError:
+        abort(404)
+    if not (0 <= idx < len(_cache["db"])):
+        abort(404)
     g = _cache["db"][idx]
     alts = [x for x in _cache["by_title"].get(norm_title(g["title"]), []) if x["id"] != g["id"] and x.get("sources")][:3]
     alts = [{"id": x["id"], "title": x["title"], "embed_url": x["embed_url"], "sources": x["sources"], "play_url": x["play_url"]} for x in alts]
     return jsonify({'success': True, 'game': g, 'alternativas': alts})
 
+
 @app.route('/api/categories')
 def get_categories():
-    if not cargar_cache(): return jsonify({'success': True, 'categories': CATEGORIES_DEF})
-    return jsonify({'success': True, 'categories': [dict(c, count=_cache["counts"].get(c["slug"],0)) for c in CATEGORIES_DEF if _cache["counts"].get(c["slug"])]})
+    if not cargar_cache():
+        return jsonify({'success': True, 'categories': CATEGORIES_DEF})
+    cats = [dict(c, count=_cache["counts"].get(c["slug"], 0)) for c in CATEGORIES_DEF if _cache["counts"].get(c["slug"])]
+    return jsonify({'success': True, 'categories': cats})
+
 
 @app.route('/api/stats')
 def stats():
-    cargar_cache(); return jsonify({'success': True, 'total': len(_cache["stream"])})
+    cargar_cache()
+    return jsonify({'success': True, 'total': len(_cache["stream"])})
+
 
 @app.route('/api/health')
-def health(): return jsonify({'status': 'ok'})
+def health():
+    return jsonify({'status': 'ok'})
+
 
 @app.route('/px/<path:target>')
 def proxy_juego(target):
-    if not http_requests: abort(502)
+    if not http_requests:
+        abort(502)
     url = target if target.startswith("http") else "https://" + target
-    try: r = http_requests.get(url, headers=UA, timeout=15)
-    except Exception: abort(502)
+    try:
+        r = http_requests.get(url, headers=UA, timeout=15)
+    except Exception:
+        abort(502)
     html = r.text
     html = re.sub(r'<meta[^>]+http-equiv=["\']?(Content-Security-Policy|X-Frame-Options)["\']?[^>]*>', '', html, flags=re.I)
     base = urlparse(url).scheme + "://" + urlparse(url).netloc + "/"
     if "<head>" in html.lower():
-        i = html.lower().index("<head>") + 6
-        html = html[:i] + MUTE_SCRIPT + f'<base href="{base}">' + html[i:]
+        idx = html.lower().index("<head>") + 6
+        html = html[:idx] + MUTE_SCRIPT + f'<base href="{base}">' + html[idx:]
     else:
         html = MUTE_SCRIPT + f'<base href="{base}">' + html
-    resp = app.make_response(html); resp.headers["Content-Type"] = "text/html; charset=utf-8"
+    resp = app.make_response(html)
+    resp.headers["Content-Type"] = "text/html; charset=utf-8"
     return resp
 
 
 try:
-    ensure_users(); cargar_cache()
+    ensure_users()
+    cargar_cache()
 except Exception as _e:
     print("prewarm skip:", _e)
 
@@ -646,4 +761,7 @@ PORT = int(os.environ.get("PORT", "5000"))
 DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"
 
 if __name__ == '__main__':
+    print("=" * 60)
+    print(f"📂 Carpeta: {os.getcwd()} | Puerto: {PORT}")
+    print("=" * 60)
     app.run(host="0.0.0.0", port=PORT, debug=DEBUG)
