@@ -3,9 +3,10 @@ import zlib
 import os
 import re
 import json
+import time
 import secrets
 from urllib.parse import urljoin, urlparse
-from flask import Flask, render_template, jsonify, request, abort, session, redirect, send_from_directory
+from flask import Flask, render_template, jsonify, request, abort, session, redirect
 
 try:
     import requests as http_requests
@@ -21,15 +22,13 @@ app = Flask(__name__)
 DB_FILE = "juegos.db"
 THUMB_DIR = os.path.join("static", "thumbs", "curated")
 
-MI_DOMINIO = ""  # pon "obitogames.com" cuando lo tengas
+MI_DOMINIO = ""
 
-# ===== CREDENCIALES OAUTH =====
 GOOGLE_CLIENT_ID = ""
 FACEBOOK_APP_ID = ""
 FACEBOOK_APP_SECRET = ""
 APPLE_CLIENT_ID = ""
 
-# Clave de sesión persistente
 SECRET_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "secret_key.txt")
 def _load_secret():
     env = os.environ.get("SECRET_KEY")
@@ -48,14 +47,15 @@ MANUAL_PHOTOS = {
     "Smash Karts": "https://imgs.crazygames.com/smash-karts_16x9/20260210123937/smash-karts_16x9-cover?metadata=none&quality=100&width=1200&height=630&fit=crop",
 }
 
+# ===== CURADOS (se removieron 2048, Hole.io, Paper.io 2, Agar.io por no funcionar) =====
 ORIENT_CURATED = {
     "Smash Karts": "horizontal", "1v1.LOL": "horizontal", "Venge.io": "horizontal",
-    "Slither.io": "auto", "Agar.io": "auto", "Shell Shockers": "horizontal",
+    "Slither.io": "auto", "Shell Shockers": "horizontal",
     "ZombsRoyale.io": "horizontal", "Skribbl.io": "horizontal", "Diep.io": "auto",
-    "Krunker.io": "horizontal", "Little Big Snake": "auto", "Hole.io": "auto",
-    "Paper.io 2": "auto", "EvoWars.io": "auto", "Surviv.io": "horizontal",
+    "Krunker.io": "horizontal", "Little Big Snake": "auto",
+    "EvoWars.io": "auto", "Surviv.io": "horizontal",
     "Wings.io": "horizontal", "Bonk.io": "horizontal", "Gartic Phone": "horizontal",
-    "2048": "auto", "Flappy Bird": "auto", "Pac-Man": "horizontal",
+    "Flappy Bird": "auto", "Pac-Man": "horizontal",
     "Tetris": "auto", "Hextris": "auto",
 }
 HORIZ_CATS = {"accion", "disparos", "io", "conducir", "deportes", "simulacion"}
@@ -109,26 +109,23 @@ GRADIENTS = {
     "trivia": "from-yellow-700 to-black",
 }
 
+# ===== CURADOS FUNCIONALES (sin 2048/Hole.io/Paper.io2/Agar.io) =====
 CURATED_RAW = [
     ("Smash Karts", "io", "io", "🏎️", ["https://smashkarts.io/"], 980000, 1500000),
     ("1v1.LOL", "batalla", "disparos", "🔫", ["https://1v1.lol/"], 950000, 1400000),
     ("Venge.io", "batalla", "disparos", "🥷", ["https://venge.io/"], 900000, 1300000),
     ("Slither.io", "io", "io", "🐍", ["https://slither.io/"], 800000, 1050000),
-    ("Agar.io", "io", "io", "🦠", ["https://agar.io/"], 760000, 980000),
     ("Shell Shockers", "batalla", "disparos", "🥚", ["https://shellshock.io/"], 680000, 880000),
     ("ZombsRoyale.io", "io", "io", "🧟", ["https://zombsroyale.io/"], 660000, 860000),
     ("Skribbl.io", "mente", "palabras", "✏️", ["https://skribbl.io/"], 640000, 840000),
     ("Diep.io", "io", "io", "🔵", ["https://diep.io/"], 620000, 820000),
     ("Krunker.io", "batalla", "disparos", "💀", ["https://krunker.io/"], 600000, 800000),
     ("Little Big Snake", "io", "io", "🐍", ["https://littlebigsnake.com/"], 580000, 780000),
-    ("Hole.io", "io", "io", "🕳️", ["https://hole-io.com/"], 560000, 760000),
-    ("Paper.io 2", "io", "io", "📄", ["https://paper-io.com/"], 540000, 740000),
     ("EvoWars.io", "io", "io", "⚔️", ["https://evowars.io/"], 520000, 720000),
     ("Surviv.io", "io", "io", "🪖", ["https://surviv.io/"], 500000, 700000),
     ("Wings.io", "io", "io", "✈️", ["https://wings.io/"], 480000, 680000),
     ("Bonk.io", "io", "io", "⚾", ["https://bonk.io/"], 460000, 660000),
     ("Gartic Phone", "mente", "palabras", "🎨", ["https://garticphone.com/"], 780000, 1000000),
-    ("2048", "mente", "puzzle", "🔢", ["https://gabrielecirulli.github.io/2048/"], 340000, 540000),
     ("Flappy Bird", "clasicos", "arcade", "🐦", ["https://ellisonleao.github.io/clumsy-bird/"], 360000, 560000),
     ("Pac-Man", "clasicos", "arcade", "👻", ["https://shaunew.github.io/Pac-Man/"], 100000, 300000),
     ("Tetris", "clasicos", "puzzle", "🧩", ["https://chvin.github.io/tetris/"], 90000, 280000),
@@ -173,7 +170,7 @@ def fuente_embebible(url):
         return _frame_cache[url]
     ok = True
     try:
-        r = http_requests.get(url, headers=UA, timeout=10, stream=True)
+        r = http_requests.get(url, headers=UA, timeout=8, stream=True)
         xfo = (r.headers.get("X-Frame-Options") or "").strip().lower()
         csp = (r.headers.get("Content-Security-Policy") or "").lower()
         if xfo in ("deny", "sameorigin") or "frame-ancestors" in csp:
@@ -185,12 +182,64 @@ def fuente_embebible(url):
     return ok
 
 
-def orden_fuentes(curado, base_src):
+def orden_fuentes(base_src, check=False):
+    """Auto-ordena fuentes: embebibles directas primero; bloqueadas vía proxy después."""
     if not base_src:
         return []
-    if curado and not fuente_embebible(base_src[0]):
-        return [con_proxy(base_src[0])] + base_src[1:]
-    return base_src + [con_proxy(base_src[0])]
+    seen = set()
+    res = []
+    def add(s):
+        if s and s not in seen:
+            seen.add(s)
+            res.append(s)
+    if not check:
+        # GD/GM: directa primero (diseñadas para iframe), proxy de respaldo al final
+        for s in base_src:
+            add(s)
+        add(con_proxy(base_src[0]))
+        return res
+    # Curados: verificar embebibilidad real y elegir la mejor automáticamente
+    directas = [s for s in base_src if fuente_embebible(s)]
+    bloqueadas = [s for s in base_src if not fuente_embebible(s)]
+    for s in directas:
+        add(s)
+    if not directas and bloqueadas:
+        add(con_proxy(bloqueadas[0]))
+    for s in bloqueadas:
+        add(con_proxy(s))
+    return res
+
+
+# ===== TENDENCIAS GAMEMONETIZE =====
+TRENDING_CACHE = {"ids": [], "ts": 0}
+
+def fetch_gamemonetize_trending(num=50):
+    """Consulta la API de GameMonetize y devuelve ids ordenados por popularidad."""
+    now = time.time()
+    if TRENDING_CACHE["ids"] and (now - TRENDING_CACHE["ts"]) < 3600:
+        return TRENDING_CACHE["ids"]
+    ids = []
+    if http_requests:
+        try:
+            r = http_requests.get(f"https://gamemonetize.com/feed.php?format=0&num={num}",
+                                  headers=UA, timeout=10)
+            txt = r.text
+            try:
+                data = json.loads(txt)
+                items = data if isinstance(data, list) else \
+                        data.get("games", data.get("items", data.get("channel", {}).get("item", [])))
+                for it in items:
+                    if isinstance(it, dict):
+                        gid = it.get("id") or it.get("game_id") or ""
+                        if gid:
+                            ids.append(str(gid))
+            except Exception:
+                ids = re.findall(r'<id>(\d+)</id>', txt) or re.findall(r'"id"\s*:\s*"?(\d+)"?', txt)
+        except Exception:
+            ids = []
+    TRENDING_CACHE["ids"] = ids
+    TRENDING_CACHE["ts"] = now
+    return ids
 
 
 def descargar_imagen_directa(url, destino):
@@ -255,24 +304,20 @@ def ensure_curated_thumbs():
         path = os.path.join(THUMB_DIR, f"c{i}.jpg")
         want = MANUAL_PHOTOS.get(title)
         have = os.path.exists(path) and os.path.getsize(path) > 15000
-        need = True
-        if have:
-            need = sources.get(f"c{i}") != (want or "og")
-        if need:
-            print(f"   🖼️  Descargando foto de {title}...")
-            done = descargar_imagen_directa(want, path) if want else False
-            if not done:
-                done = descargar_og_image(srcs[0], path)
-            if done:
-                sources[f"c{i}"] = want or "og"
-                have = os.path.exists(path) and os.path.getsize(path) > 15000
-            elif os.path.exists(path):
-                os.remove(path)
-                have = False
         if have:
             ok.add(f"c{i}")
+            sources[f"c{i}"] = sources.get(f"c{i}") or (want or "og")
+            continue
+        print(f"   🖼️  Descargando foto de {title}...")
+        done = descargar_imagen_directa(want, path) if want else False
+        if not done:
+            done = descargar_og_image(srcs[0], path)
+        if done:
+            sources[f"c{i}"] = want or "og"
+            ok.add(f"c{i}")
         else:
-            print(f"   ❌ {title} sin foto → descartado")
+            print(f"   ⚠️  {title} sin foto → se mantiene con emoji/gradiente")
+            ok.add(f"c{i}")
     with open(marker_path, "w") as f:
         json.dump(sources, f)
     return ok
@@ -284,11 +329,14 @@ CURATED = []
 for i, (t, tag, cat, em, sources, pl, lk) in enumerate(CURATED_RAW, start=1):
     if f"c{i}" not in _ok:
         continue
-    full = orden_fuentes(True, sources)
+    full = orden_fuentes(sources, check=True)
+    logo_path = f"/static/thumbs/curated/c{i}.jpg"
+    local_path = os.path.join(THUMB_DIR, f"c{i}.jpg")
+    logo = logo_path if os.path.exists(local_path) and os.path.getsize(local_path) > 15000 else None
     CURATED.append({
         "id": f"c{i}", "title": t, "tag": tag, "category": cat, "emoji": em,
         "gradient": GRADIENTS.get(cat, "from-zinc-800 to-black"),
-        "logo": f"/static/thumbs/curated/c{i}.jpg",
+        "logo": logo,
         "sources": full, "embed_url": full[0], "play_url": sources[0],
         "active_players": pl, "likes": lk, "sections": [],
         "desc": f"{t} — juega gratis en Obito Games.",
@@ -346,7 +394,7 @@ def sync_curated():
             ON CONFLICT(id) DO UPDATE SET titulo=excluded.titulo, categoria=excluded.categoria,
             imagen_url=excluded.imagen_url, iframe_url=excluded.iframe_url, tag=excluded.tag,
             fuente=excluded.fuente, sources=excluded.sources""",
-            (g["id"], g["title"], g["desc"], g["category"], g["logo"], g["embed_url"], g["tag"], "curado", "|".join(g["sources"])))
+            (g["id"], g["title"], g["desc"], g["category"], g["logo"] or "", g["embed_url"], g["tag"], "curado", "|".join(g["sources"])))
     conn.commit()
     conn.close()
     print(f"💾 {len(CURATED)} juegos oficiales sincronizados en juegos.db")
@@ -373,7 +421,7 @@ def cargar_cache():
         imagen = (r["imagen_url"] or "").strip()
         if (r["fuente"] or "") == "curado":
             raw = [s for s in (r["sources"] or "").split("|") if s and not s.startswith("/px/")] or [r["iframe_url"]]
-            full = orden_fuentes(True, [s for s in raw if s and s.startswith("http")])
+            full = orden_fuentes([s for s in raw if s and s.startswith("http")], check=True)
             base = next((c for c in CURATED if c["id"] == gid), None)
             g = {
                 "id": gid, "title": r["titulo"], "category": r["categoria"], "tag": r["tag"],
@@ -396,7 +444,7 @@ def cargar_cache():
                     imagen = f"https://img.gamedistribution.com/{gid}.jpg"
             slug = mapear_categoria(r["categoria"])
             base_src = construir_fuentes(gid, r["iframe_url"])
-            full = orden_fuentes(False, base_src)
+            full = orden_fuentes(base_src, check=False)
             g = {
                 "id": len(db) + 1, "gd_id": gid, "title": r["titulo"] or "Sin título",
                 "category": slug, "emoji": EMOJIS.get(slug, "🎮"),
@@ -414,24 +462,34 @@ def cargar_cache():
         counts[g["category"]] = counts.get(g["category"], 0) + 1
         by_title.setdefault(norm_title(g["title"]), []).append(g)
 
+    # ===== TENDENCIAS: GameMonetize populares primero, ligados con curados =====
+    trending_ids = fetch_gamemonetize_trending()
+    trank = {gid: i for i, gid in enumerate(trending_ids)}
+    for g in db:
+        raw_id = g["gd_id"][3:] if g["gd_id"].startswith("gm_") else g["gd_id"]
+        g["trending"] = trank.get(raw_id, trank.get(g["gd_id"]))
+
+    trend_games = sorted([g for g in db if g.get("trending") is not None], key=lambda x: x["trending"])
+    rest_games = sorted([g for g in db if g.get("trending") is None], key=lambda x: x["active_players"], reverse=True)
     cur_list = sorted(curated.values(), key=lambda x: x["active_players"], reverse=True)
-    cur_titles = {norm_title(g["title"]) for g in cur_list}
-    db_sorted = sorted([g for g in db if norm_title(g["title"]) not in cur_titles],
-                       key=lambda x: x["active_players"], reverse=True)
-    stream = []
-    i = j = 0
-    while j < len(cur_list) or i < len(db_sorted):
-        if j < len(cur_list) and (i >= len(db_sorted) or j <= i):
-            stream.append(cur_list[j]); j += 1
-        else:
-            stream.append(db_sorted[i]); i += 1
+
+    # Top intercalado: 2 tendencias + 1 curado (liga famosos con curados)
+    top = []
+    ti = cj = 0
+    while ti < len(trend_games) or cj < len(cur_list):
+        for _ in range(2):
+            if ti < len(trend_games):
+                top.append(trend_games[ti]); ti += 1
+        if cj < len(cur_list):
+            top.append(cur_list[cj]); cj += 1
+    stream = top + rest_games
 
     _cache["db"], _cache["curated"], _cache["stream"], _cache["counts"], _cache["by_title"], _cache["ready"] = db, curated, stream, counts, by_title, True
-    print(f"✅ Caché lista: {len(stream)} juegos")
+    print(f"✅ Caché lista: {len(stream)} juegos | {len(trend_games)} tendencias GM | {len(cur_list)} curados")
     return True
 
 
-# ===== TABLA DE USUARIOS =====
+# ===== USUARIOS =====
 def ensure_users():
     conn = sqlite3.connect(DB_FILE)
     conn.execute("""CREATE TABLE IF NOT EXISTS users (
