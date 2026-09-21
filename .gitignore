@@ -4,3 +4,5 @@
 .env
 *.log
 secret_key.txt
+
+juegos.db.backup_*
