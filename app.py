@@ -507,7 +507,7 @@ def construir_fuentes(gid, stored_url, fuente=None):
 
 def asegurar_columnas(conn):
     cols = [r[1] for r in conn.execute("PRAGMA table_info(juegos)")]
-    for col, tipo in (("tag", "TEXT"), ("fuente", "TEXT"), ("sources", "TEXT"), ("orientacion", "TEXT")):
+    for col, tipo in (("tag", "TEXT"), ("fuente", "TEXT"), ("sources", "TEXT"), ("orientacion", "TEXT"), ("preview_url", "TEXT"), ("walkthrough_url", "TEXT")):
         if col not in cols:
             conn.execute(f"ALTER TABLE juegos ADD COLUMN {col} {tipo}")
     conn.commit()
@@ -605,6 +605,8 @@ def cargar_cache():
                 "category": slug, "emoji": EMOJIS.get(slug, "🎮"),
                 "gradient": GRADIENTS.get(slug, "from-zinc-800 to-black"),
                 "logo": imagen,
+                "preview_url": (r["preview_url"] or "") if "preview_url" in cols else "",
+                "walkthrough_url": (r["walkthrough_url"] or "") if "walkthrough_url" in cols else "",
                 "active_players": pseudo(gid, 300, 12000),
                 "likes": pseudo(gid + "likes", 5000, 900000),
                 "sections": [], "play_url": (base_src[0] if base_src else None),

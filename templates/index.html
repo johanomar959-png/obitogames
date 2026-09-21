@@ -562,6 +562,22 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
     #railAd.obito-ad-rail{min-height:250px;}
   }
 
+
+/* ===== OBITO UX PATCH: previews + fullscreen limpio + mobile ===== */
+.game-preview-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.03);transition:opacity .22s ease,transform .45s ease;pointer-events:none;background:#090203;z-index:3}
+.group.previewing .game-preview-video{opacity:1;transform:scale(1)}
+.preview-badge{position:absolute;left:.65rem;top:.65rem;z-index:8;display:flex;align-items:center;gap:.35rem;padding:.3rem .5rem;border-radius:999px;background:rgba(5,2,3,.74);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(8px);font-size:.62rem;font-weight:900;color:#fff;opacity:0;transform:translateY(-4px);transition:.2s}
+.group.previewing .preview-badge{opacity:1;transform:none}
+#gamePlayerShell.obito-toolbar-hidden #gameToolbar{display:none!important}
+#gamePlayerShell.obito-toolbar-hidden #stageBox{flex:1 1 auto!important;border-radius:0!important}
+#gamePlayerShell.obito-toolbar-hidden #stageWrap{height:100%!important;width:100%!important;max-width:none!important;max-height:none!important}
+#floatingToolbarReveal{display:none;position:absolute;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:10002;width:46px;height:46px;border-radius:999px;align-items:center;justify-content:center;background:rgba(12,4,5,.78);border:1px solid rgba(255,65,65,.35);backdrop-filter:blur(12px);box-shadow:0 12px 35px rgba(0,0,0,.4);color:#fff}
+#gamePlayerShell.obito-toolbar-hidden #floatingToolbarReveal{display:flex}
+#stageBox{box-shadow:0 22px 70px rgba(0,0,0,.38),0 0 0 1px rgba(255,40,40,.08)}
+#stageOverlay{background-color:rgba(7,2,3,.94)!important;backdrop-filter:blur(12px)}
+@media(max-width:767px){#gameView{padding:.35rem!important}.obito-after-player-grid{gap:.75rem!important}#stageBox{border-radius:.75rem .75rem 0 0!important}#gameToolbar{padding:.45rem!important}#gameToolbar .tool-btn{width:40px;height:40px;padding:0!important;border-radius:.7rem}#gameToolbar #tbEmoji{width:2rem;height:2rem}#gameToolbar #tbTitle{font-size:.82rem;max-width:30vw}.group .tile-play{opacity:.9}.game-preview-video{display:none!important}}
+@media(hover:hover) and (pointer:fine){.group[data-preview]:hover .tile-img{filter:brightness(.68)}}
+
 </style>
 </head>
 <body class="text-white min-h-screen">
@@ -765,8 +781,10 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
           <button id="soundBtn" class="tool-btn" title="Silenciar / activar sonido"></button>
           <button id="reportBtn" class="tool-btn" title="Reportar"></button>
           <button id="tabBtn" class="tool-btn" title="Abrir en pestaña nueva"></button>
+          <button id="hideToolbarBtn" class="tool-btn" title="Ocultar barra en pantalla completa" aria-label="Ocultar barra"></button>
           <button id="fsBtn" class="tool-btn" title="Pantalla completa"></button>
         </div>
+        <button id="floatingToolbarReveal" title="Mostrar controles" aria-label="Mostrar controles">⌃</button>
         </div><!-- /gamePlayerShell -->
         <div class="obito-after-player-grid">
           <div class="obito-after-player-main min-w-0">
@@ -1258,9 +1276,11 @@ function tileHTML(g,cls){
   if(!logo)return '';
   var pl=g.active_players?Number(g.active_players).toLocaleString('es'):'0';
   var warm=g.embed_url?' data-warm="'+Security.escapeHtml(String(g.embed_url))+'"':'';
-  return '<a href="#juego-'+gid+'" data-play="'+gid+'"'+warm+' aria-label="Jugar '+t+'" class="group relative block overflow-hidden rounded-xl ring-1 ring-red-900/30 hover:ring-red-500/70 hover:shadow-xl hover:shadow-red-950/40 transition '+cls+'">'+
+  var preview=g.preview_url?Security.sanitizeUrl(g.preview_url):''; var pv=preview?' data-preview="'+Security.escapeHtml(preview)+'"':'';
+  return '<a href="#juego-'+gid+'" data-play="'+gid+'"'+warm+pv+' aria-label="Jugar '+t+'" class="group relative block overflow-hidden rounded-xl ring-1 ring-red-900/30 hover:ring-red-500/70 hover:shadow-xl hover:shadow-red-950/40 transition '+cls+'">'+
     '<div class="absolute inset-0 bg-gradient-to-br '+gr+'"></div>'+
     '<img src="'+logo+'" alt="Jugar '+t+' online gratis" loading="lazy" decoding="async" class="tile-img absolute inset-0 w-full h-full object-cover" '+IMG_FAIL+'>'+
+    (preview?'<video class="game-preview-video" muted loop playsinline preload="none" data-src="'+Security.escapeHtml(preview)+'"></video><span class="preview-badge">▶ PREVIEW</span>':'')+
     '<div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/5 to-black/10"></div>'+
     '<span class="tile-play">'+icon('play','w-3 h-3')+'<span>JUGAR</span></span>'+
     '<span class="tile-shine"></span>'+
@@ -1549,7 +1569,7 @@ function stopStage(){clearTimeout(stageState.timer);clearInterval(stageState.tic
 function clearOverlayBg(){var ov=$('#stageOverlay');if(ov)ov.style.backgroundImage='';}
 function stageShow(msg,showFail){var ov=$('#stageOverlay');if(!ov)return;ov.classList.remove('hidden');ov.classList.add('flex');var m=$('#stageMsg');if(m)m.textContent=msg;var sp=$('#stageSpinner');if(sp)sp.classList.toggle('hidden',!!showFail);var f=$('#stageFail');if(f)f.classList.toggle('hidden',!showFail);}
 function stageHide(){clearTimeout(stageState.timer);clearInterval(stageState.tick);var ov=$('#stageOverlay');if(!ov)return;ov.classList.add('hidden');ov.classList.remove('flex');}
-window.__stageLoaded=function(){stageHide();};
+window.__stageLoaded=function(){clearTimeout(stageState.timer);setTimeout(function(){stageHide();},650);};
 
 var pageMuteObserver=null;
 
@@ -1735,7 +1755,8 @@ function clearGameMonetizeWalkthrough(){
 function mountGameMonetizeWalkthrough(g){
   clearGameMonetizeWalkthrough();
   var gameid=gmWalkthroughGameId(g);
-  if(!gameid)return;
+  /* Evita el bloque negro: el walkthrough externo no se monta salvo que la API entregue una URL de video/guía explícita. */
+  if(!gameid || !g.walkthrough_url)return;
   var sec=$('#gmWalkthroughSection'),box=$('#gamemonetize-video');
   if(!sec||!box)return;
   var domain=(window.location.hostname||'').toLowerCase();
@@ -1749,7 +1770,7 @@ function mountGameMonetizeWalkthrough(g){
   });
   var fr=document.createElement('iframe');
   fr.id='gamemonetize-walkthrough';
-  fr.src='https://gamemonetize.video/index.php?'+params.toString();
+  fr.src=Security.sanitizeUrl(g.walkthrough_url)||('https://gamemonetize.video/index.php?'+params.toString());
   fr.title='Guía del juego - GameMonetize';
   fr.loading='lazy';
   fr.scrolling='no';
@@ -2241,6 +2262,24 @@ function init(){
   });
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+
+// ===== Hover preview real (solo si preview_url existe) =====
+(function(){
+  function startPreview(card){var v=card&&card.querySelector('.game-preview-video');if(!v)return;var src=v.dataset.src;if(src&&!v.src)v.src=src;card.classList.add('previewing');var p=v.play();if(p&&p.catch)p.catch(function(){});}
+  function stopPreview(card){var v=card&&card.querySelector('.game-preview-video');if(!v)return;card.classList.remove('previewing');try{v.pause();v.currentTime=0;}catch(e){}}
+  document.addEventListener('pointerover',function(e){if(e.pointerType==='touch')return;var c=e.target.closest('[data-preview]');if(c)startPreview(c);});
+  document.addEventListener('pointerout',function(e){var c=e.target.closest('[data-preview]');if(c&&!c.contains(e.relatedTarget))stopPreview(c);});
+})();
+
+function setToolbarHidden(hidden){var s=playerShell();if(!s)return;s.classList.toggle('obito-toolbar-hidden',!!hidden);setTimeout(fitStageToViewport,0);}
+document.addEventListener('click',function(e){
+  if(e.target.closest('#hideToolbarBtn')){if(!isGameFullscreen()){toast('Activa pantalla completa para ocultar la barra');return;}setToolbarHidden(true);}
+  if(e.target.closest('#floatingToolbarReveal'))setToolbarHidden(false);
+});
+document.addEventListener('fullscreenchange',function(){if(!isGameFullscreen())setToolbarHidden(false);});
+document.addEventListener('webkitfullscreenchange',function(){if(!isGameFullscreen())setToolbarHidden(false);});
+setTimeout(function(){var b=$('#hideToolbarBtn');if(b)b.innerHTML=icon('chevron-down','w-4 h-4');},0);
+
 </script>
 </body>
 </html>
