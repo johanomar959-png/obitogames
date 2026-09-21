@@ -505,9 +505,38 @@ def construir_fuentes(gid, stored_url, fuente=None):
     return result
 
 
+
+def extraer_gamemonetize_game_id(gid, fuente, urls=None):
+    """Devuelve el hash real de GameMonetize usado por video.js/walkthroughs."""
+    source = str(fuente or "").strip().lower()
+    candidates = list(urls or [])
+    raw_gid = str(gid or "").strip()
+    if raw_gid.startswith("gm_"):
+        candidates.append(raw_gid[3:])
+    elif source in ("gm", "gamemonetize", "game monetize"):
+        candidates.append(raw_gid)
+
+    for item in candidates:
+        value = str(item or "").strip()
+        if re.fullmatch(r"[A-Za-z0-9]{20,80}", value):
+            return value
+        if not value.startswith(("http://", "https://")):
+            continue
+        try:
+            parsed = urlparse(value)
+            host = (parsed.hostname or "").lower()
+            if host in {"html5.gamemonetize.com", "html5.gamemonetize.co", "html5.gamemonetize.games"}:
+                token = next((p for p in parsed.path.split("/") if p), "")
+                if re.fullmatch(r"[A-Za-z0-9]{20,80}", token):
+                    return token
+        except Exception:
+            pass
+    return None
+
+
 def asegurar_columnas(conn):
     cols = [r[1] for r in conn.execute("PRAGMA table_info(juegos)")]
-    for col, tipo in (("tag", "TEXT"), ("fuente", "TEXT"), ("sources", "TEXT"), ("orientacion", "TEXT"), ("preview_url", "TEXT"), ("walkthrough_url", "TEXT")):
+    for col, tipo in (("tag", "TEXT"), ("fuente", "TEXT"), ("sources", "TEXT"), ("orientacion", "TEXT"), ("preview_url", "TEXT")):
         if col not in cols:
             conn.execute(f"ALTER TABLE juegos ADD COLUMN {col} {tipo}")
     conn.commit()
@@ -567,6 +596,8 @@ def cargar_cache():
                 "active_players": base["active_players"] if base else 1000,
                 "likes": base["likes"] if base else 1000,
                 "sections": [], "desc": r["descripcion"] or "", "blocked": False,
+                "preview_url": (r["preview_url"] or "").strip() or None,
+                "gm_game_id": extraer_gamemonetize_game_id(gid, r["fuente"], raw),
                 "orientation": ORIENT_CURATED.get(r["titulo"], "horizontal" if mapear_categoria(r["categoria"]) in HORIZ_CATS else "auto"),
             }
             g["seo_slug"] = make_game_slug(g["title"], gid)
@@ -605,14 +636,14 @@ def cargar_cache():
                 "category": slug, "emoji": EMOJIS.get(slug, "🎮"),
                 "gradient": GRADIENTS.get(slug, "from-zinc-800 to-black"),
                 "logo": imagen,
-                "preview_url": (r["preview_url"] or "") if "preview_url" in cols else "",
-                "walkthrough_url": (r["walkthrough_url"] or "") if "walkthrough_url" in cols else "",
                 "active_players": pseudo(gid, 300, 12000),
                 "likes": pseudo(gid + "likes", 5000, 900000),
                 "sections": [], "play_url": (base_src[0] if base_src else None),
                 "embed_url": full[0] if full else None, "sources": full,
                 "desc": (r["descripcion"] or "Juega gratis en Obito Games.")[:220],
                 "blocked": False,
+                "preview_url": (r["preview_url"] or "").strip() or None,
+                "gm_game_id": extraer_gamemonetize_game_id(gid, r["fuente"], base_src),
                 "orientation": (r["orientacion"] if (has_orient and r["orientacion"]) else ("horizontal" if slug in HORIZ_CATS else "auto")),
             }
             g["seo_slug"] = make_game_slug(g["title"], gid)
@@ -1028,7 +1059,7 @@ def get_game(game_id):
         abort(404)
     g = _cache["db"][idx]
     alts = [x for x in _cache["by_title"].get(norm_title(g["title"]), []) if x["id"] != g["id"] and x.get("sources")][:3]
-    alts = [{"id": x["id"], "title": x["title"], "embed_url": x["embed_url"], "sources": x["sources"], "play_url": x["play_url"]} for x in alts]
+    alts = [{"id": x["id"], "title": x["title"], "embed_url": x["embed_url"], "sources": x["sources"], "play_url": x["play_url"], "preview_url": x.get("preview_url"), "gm_game_id": x.get("gm_game_id")} for x in alts]
     return jsonify({'success': True, 'game': g, 'alternativas': alts})
 
 
