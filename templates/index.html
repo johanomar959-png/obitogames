@@ -477,11 +477,90 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
   @media(max-width:767px){ #gameView{padding:.45rem!important;}#gameToolbar{flex-wrap:nowrap!important;overflow-x:auto!important;gap:.25rem!important;scrollbar-width:none;}#gameToolbar::-webkit-scrollbar{display:none;}#gameToolbar #tbTitle{max-width:36vw;}#gameToolbar .tool-btn{flex:0 0 auto;min-width:38px;justify-content:center;}}
 
 
-  /* ===== GOOGLE ADSENSE: espacio debajo del reproductor ===== */
-  .obito-adsense-under-game{width:100%;min-height:100px;margin:14px 0 18px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,.055);border-radius:12px;background:rgba(255,255,255,.018);}
-  .obito-adsense-label{display:block;margin:0 0 7px;color:#6b7280;font-size:10px;font-weight:700;letter-spacing:.12em;text-align:center;text-transform:uppercase;}
-  .obito-adsense-under-game .adsbygoogle{width:100%;min-width:0;}
-  @media(max-width:640px){.obito-adsense-under-game{min-height:90px;margin:10px 0 14px;padding:8px;border-radius:10px;}}
+  /* ===== ADSENSE: 3 UBICACIONES TIPO CRAZYGAMES ===== */
+  .obito-ad-unit{
+    position:relative;
+    width:100%;
+    min-width:0;
+    overflow:hidden;
+    background:#090b12;
+    border:1px solid rgba(255,255,255,.07);
+    border-radius:10px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+  }
+  .obito-ad-unit .obito-ad-label{
+    display:block;
+    position:absolute;
+    z-index:1;
+    top:5px;
+    left:7px;
+    color:#6b7280;
+    font-size:9px;
+    font-weight:800;
+    letter-spacing:.10em;
+    line-height:1;
+    text-transform:uppercase;
+    pointer-events:none;
+  }
+  .obito-ad-unit .adsbygoogle{
+    display:block;
+    width:100%;
+    min-width:0;
+  }
+
+  /* 1) Debajo del juego: banner horizontal */
+  #stageAd.obito-ad-horizontal{
+    min-height:100px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  /* Fila inferior: banner a la izquierda + bloque cuadrado a la derecha */
+  .obito-after-player-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 300px;
+    gap:14px;
+    align-items:start;
+    margin-top:14px;
+  }
+  .obito-after-player-main{min-width:0;}
+
+  /* 2) Bloque inferior derecho */
+  #squareAd.obito-ad-square{
+    width:300px;
+    min-height:250px;
+    align-self:start;
+  }
+
+  /* 3) Bloque superior derecho, antes de "Jugar a continuación" */
+  #railAd.obito-ad-rail{
+    width:100%;
+    min-height:250px;
+    margin-bottom:20px;
+  }
+
+  @media (max-width:1023px){
+    .obito-after-player-grid{grid-template-columns:1fr;}
+    #squareAd.obito-ad-square{
+      width:min(100%,336px);
+      min-height:250px;
+      justify-self:center;
+    }
+    #railAd.obito-ad-rail{
+      width:min(100%,336px);
+      min-height:250px;
+      margin-left:auto;
+      margin-right:auto;
+    }
+  }
+
+  @media (max-width:640px){
+    .obito-after-player-grid{gap:10px;margin-top:10px;}
+    #stageAd.obito-ad-horizontal{min-height:90px;}
+    #squareAd.obito-ad-square,
+    #railAd.obito-ad-rail{min-height:250px;}
+  }
 
 </style>
 </head>
@@ -688,20 +767,18 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
           <button id="tabBtn" class="tool-btn" title="Abrir en pestaña nueva"></button>
           <button id="fsBtn" class="tool-btn" title="Pantalla completa"></button>
         </div>
-
-        <!-- Google AdSense: unidad ObitoGames debajo del juego -->
-        <div id="obitoAdUnderGame" class="obito-adsense-under-game" aria-label="Publicidad">
-          <span class="obito-adsense-label">Publicidad</span>
-          <ins class="adsbygoogle"
+        </div><!-- /gamePlayerShell -->
+        <div class="obito-after-player-grid">
+          <div class="obito-after-player-main min-w-0">
+            <div id="stageAd" class="obito-ad-unit obito-ad-horizontal">
+              <span class="obito-ad-label">Publicidad</span>
+          <ins class="adsbygoogle ".strip()
                style="display:block"
                data-ad-client="ca-pub-4725422900328256"
                data-ad-slot="6410282019"
                data-ad-format="auto"
                data-full-width-responsive="true"></ins>
-        </div>
-
-        </div><!-- /gamePlayerShell -->
-        <div id="stageAd" class="mt-4"></div>
+            </div>
         <section id="gmWalkthroughSection" class="hidden mt-4 rounded-2xl overflow-hidden border border-red-900/40 bg-black">
           <div class="px-4 py-3 border-b border-red-900/40 flex items-center justify-between gap-3 bg-[#120607]">
             <div>
@@ -718,9 +795,28 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
           <button id="crumbCat" class="hover:text-red-400 transition"></button> »
           <span id="crumbTitle" class="text-gray-200"></span>
         </nav>
+          </div>
+          <div id="squareAd" class="obito-ad-unit obito-ad-square">
+            <span class="obito-ad-label">Publicidad</span>
+          <ins class="adsbygoogle ".strip()
+               style="display:block"
+               data-ad-client="ca-pub-4725422900328256"
+               data-ad-slot="6410282019"
+               data-ad-format="auto"
+               data-full-width-responsive="true"></ins>
+          </div>
+        </div>
       </div>
       <aside class="w-full xl:w-80 shrink-0">
-        <div id="railAd" class="mb-5"></div>
+        <div id="railAd" class="obito-ad-unit obito-ad-rail">
+          <span class="obito-ad-label">Publicidad</span>
+          <ins class="adsbygoogle ".strip()
+               style="display:block"
+               data-ad-client="ca-pub-4725422900328256"
+               data-ad-slot="6410282019"
+               data-ad-format="auto"
+               data-full-width-responsive="true"></ins>
+        </div>
         <h3 class="font-extrabold mb-3">Jugar a continuación</h3>
         <div id="nextGames" class="space-y-3"></div>
         <div id="railSentinel" class="h-8"></div>
@@ -1115,6 +1211,25 @@ function loginFacebook(){
       .catch(function(e){toast('Facebook: '+e.message);});
     },{scope:'public_profile,email'});
   }).catch(function(){toast('No se pudo cargar Facebook Login');});
+}
+
+
+function refreshObitoGameAds(){
+  var root=document.getElementById('gameView');
+  if(!root || root.classList.contains('hidden'))return;
+  var units=root.querySelectorAll('.obito-ad-unit ins.adsbygoogle');
+  units.forEach(function(el){
+    if(el.dataset.obitoPushed==='1' || el.getAttribute('data-adsbygoogle-status'))return;
+    var host=el.closest('.obito-ad-unit');
+    if(!host || host.offsetWidth<40)return;
+    el.dataset.obitoPushed='1';
+    try{
+      (window.adsbygoogle=window.adsbygoogle||[]).push({});
+    }catch(e){
+      el.dataset.obitoPushed='0';
+      console.warn('AdSense Obito Games:',e);
+    }
+  });
 }
 
 function adBanner(compact){
@@ -1656,11 +1771,11 @@ function finishGameView(g){
   var cat=null;for(var i=0;i<CATS.length;i++){if(CATS[i].slug===g.category){cat=CATS[i];break;}}
   $('#crumbCat').textContent=cat?cat.name:g.category;
   $('#crumbTitle').textContent=g.title;
-  $('#stageAd').innerHTML=adBanner();
-  $('#railAd').innerHTML=adBanner();
   mountGameMonetizeWalkthrough(g);
   $('#gameInfo').innerHTML=gameInfoHTML(g);
-  loadAdScript();refreshAds($('#gameView'));
+  requestAnimationFrame(function(){
+    setTimeout(refreshObitoGameAds,80);
+  });
   loadRail(g);
   applyOrientation();
   window.scrollTo(0,0);
@@ -2127,15 +2242,5 @@ function init(){
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 </script>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  const ad = document.querySelector('#obitoAdUnderGame .adsbygoogle');
-  if (!ad || ad.dataset.adsbygoogleStatus) return;
-  try { (window.adsbygoogle = window.adsbygoogle || []).push({}); }
-  catch (err) { console.warn('AdSense ObitoGames:', err); }
-});
-</script>
-
 </body>
 </html>
