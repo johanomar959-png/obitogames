@@ -645,6 +645,190 @@ header:after{content:"";position:absolute;left:12%;right:12%;bottom:-1px;height:
 @media(hover:hover) and (pointer:fine){ .group[data-preview]:hover .tile-img,.group[data-gm-preview]:hover .tile-img{filter:brightness(.58) saturate(1.08)} }
 @media(prefers-reduced-motion:reduce){[data-play].group,.tile-img,.game-preview-video,.gm-card-preview-slot,.preview-badge{transition:none!important}.gm-video-loader .ring{animation:none!important}}
 
+
+/* ============================================================
+   OBITO GAMES — ULTRA VISUAL + SAFE GAMEMONETIZE EMBEDS
+   ============================================================ */
+.gm-isolated-shell{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#050203}
+.gm-isolated-frame{display:block;width:100%;height:100%;min-height:100%;border:0;background:#050203}
+.gm-isolated-shell .gm-video-loader{z-index:2;transition:opacity .22s ease}
+.gm-isolated-shell .gm-video-loader.is-hidden{opacity:0;pointer-events:none}
+.gm-card-preview-slot .gm-isolated-shell,.gm-card-preview-slot .gm-isolated-frame{position:absolute;inset:0;width:100%!important;height:100%!important;min-height:100%!important}
+.gm-card-preview-slot .gm-isolated-frame{transform:scale(1.035);transform-origin:center}
+#gmVideoMount .gm-isolated-shell{position:relative;inset:auto;min-height:clamp(280px,42vw,500px)}
+#gmVideoMount .gm-isolated-frame{min-height:clamp(280px,42vw,500px)}
+
+/* Fondo premium con movimiento muy sutil */
+body{
+  background:
+    radial-gradient(1000px circle at 8% -10%,rgba(255,25,35,.17),transparent 45%),
+    radial-gradient(900px circle at 92% 8%,rgba(91,28,255,.10),transparent 42%),
+    radial-gradient(650px circle at 48% 115%,rgba(255,0,70,.08),transparent 48%),
+    linear-gradient(180deg,#080203 0%,#050102 58%,#030102 100%)!important;
+}
+.bg-glow{overflow:hidden}
+.bg-glow:before,.bg-glow:after{
+  content:"";position:absolute;border-radius:50%;filter:blur(70px);opacity:.42;will-change:transform;pointer-events:none
+}
+.bg-glow:before{width:34rem;height:34rem;left:-8rem;top:8vh;background:rgba(255,23,23,.13);animation:obitoAmbientA 16s ease-in-out infinite alternate}
+.bg-glow:after{width:30rem;height:30rem;right:-7rem;top:22vh;background:rgba(111,45,255,.09);animation:obitoAmbientB 19s ease-in-out infinite alternate}
+@keyframes obitoAmbientA{from{transform:translate3d(0,0,0) scale(.92)}to{transform:translate3d(7vw,12vh,0) scale(1.08)}}
+@keyframes obitoAmbientB{from{transform:translate3d(0,6vh,0) scale(1)}to{transform:translate3d(-9vw,-4vh,0) scale(1.13)}}
+
+/* Header más sólido y reconocible */
+header{
+  background:linear-gradient(180deg,rgba(13,3,5,.94),rgba(6,2,3,.88))!important;
+  -webkit-backdrop-filter:blur(22px) saturate(150%)!important;
+  backdrop-filter:blur(22px) saturate(150%)!important;
+  box-shadow:0 14px 42px rgba(0,0,0,.34),0 1px 0 rgba(255,50,60,.08)!important
+}
+header .font-display{filter:drop-shadow(0 0 13px rgba(255,35,45,.16))}
+#searchInput{
+  min-height:42px!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.052),rgba(255,255,255,.025))!important;
+  border-color:rgba(255,68,76,.20)!important
+}
+#searchInput:focus{
+  background:rgba(12,4,6,.94)!important;
+  box-shadow:0 0 0 4px rgba(255,24,36,.08),0 12px 38px rgba(0,0,0,.30),0 0 34px rgba(255,20,32,.12)!important
+}
+
+/* Limita el ancho extremo sin desperdiciar pantallas grandes */
+#homeView,#browseView,#gameView{width:min(100%,1920px);margin-inline:auto}
+
+/* Hero de portada */
+#seoHero{
+  min-height:360px;
+  background:
+    linear-gradient(122deg,rgba(54,6,12,.97) 0%,rgba(11,3,5,.965) 48%,rgba(19,5,15,.96) 100%)!important;
+  border-color:rgba(255,55,65,.28)!important;
+  box-shadow:0 32px 110px rgba(0,0,0,.48),0 0 70px rgba(255,0,26,.10),inset 0 1px 0 rgba(255,255,255,.06)!important
+}
+#seoHero:before{
+  background-image:
+    linear-gradient(rgba(255,60,70,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,60,70,.045) 1px,transparent 1px)!important;
+  background-size:32px 32px!important
+}
+#seoHero .hero-badge{box-shadow:0 10px 28px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.05)}
+#seoHero .hero-title{font-size:clamp(2.35rem,5vw,4.25rem)!important;text-shadow:0 18px 50px rgba(0,0,0,.34)}
+#seoHero .hero-console{
+  background:linear-gradient(180deg,rgba(255,255,255,.067),rgba(255,255,255,.021))!important;
+  border-color:rgba(255,80,90,.17)!important;
+  box-shadow:0 28px 70px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.06)!important
+}
+#seoHero .hero-console:before{border-color:rgba(255,75,85,.13)!important}
+.hero-cta.primary{position:relative;overflow:hidden}
+.hero-cta.primary:after{content:"";position:absolute;inset:-50% -30%;background:linear-gradient(110deg,transparent 40%,rgba(255,255,255,.18) 50%,transparent 60%);transform:translateX(-70%) rotate(8deg);transition:transform .55s ease}
+.hero-cta.primary:hover:after{transform:translateX(70%) rotate(8deg)}
+
+/* Secciones del catálogo como paneles premium */
+#homeRows{display:flex;flex-direction:column;gap:1.2rem!important}
+#homeRows>section{
+  position:relative;
+  padding:15px 14px 17px;
+  border-radius:24px;
+  border:1px solid rgba(255,255,255,.055);
+  background:linear-gradient(180deg,rgba(255,255,255,.024),rgba(255,255,255,.010));
+  box-shadow:0 14px 44px rgba(0,0,0,.12);
+  overflow:hidden
+}
+#homeRows>section:before{
+  content:"";position:absolute;left:18px;right:18px;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,51,62,.34),transparent);
+  pointer-events:none
+}
+#homeRows>section>div:first-child h2{letter-spacing:-.025em;text-shadow:0 8px 25px rgba(0,0,0,.22)}
+#homeRows .row-track{padding:4px 3px 10px}
+
+/* Tarjetas: más profundidad, brillo y mejor legibilidad */
+[data-play].group{
+  border-radius:18px!important;
+  outline:1px solid rgba(255,255,255,.035)!important;
+  box-shadow:0 10px 30px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.025)!important;
+  transform:translateZ(0)
+}
+[data-play].group:after{
+  content:"";position:absolute;inset:0;z-index:14;border-radius:inherit;pointer-events:none;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.028),inset 0 -40px 70px rgba(0,0,0,.10)
+}
+[data-play].group:hover{
+  transform:translateY(-7px) scale(1.018)!important;
+  outline-color:rgba(255,58,68,.28)!important;
+  box-shadow:0 28px 68px rgba(0,0,0,.48),0 0 0 1px rgba(255,55,65,.20),0 0 44px rgba(224,0,25,.15)!important
+}
+[data-play].group:hover:after{box-shadow:inset 0 0 0 1px rgba(255,110,118,.11),inset 0 -46px 80px rgba(0,0,0,.16)}
+.tile-play{
+  top:.72rem!important;right:.72rem!important;
+  background:linear-gradient(135deg,rgba(255,38,48,.94),rgba(177,0,20,.93))!important;
+  border-color:rgba(255,150,156,.25)!important;
+  box-shadow:0 10px 30px rgba(136,0,14,.35),inset 0 1px 0 rgba(255,255,255,.16)!important
+}
+.tile-content{padding:13px!important}
+.obito-card-meta{color:#e5e7eb!important;opacity:.90!important}
+.preview-badge{
+  background:linear-gradient(135deg,rgba(13,5,7,.92),rgba(34,5,9,.86))!important;
+  border-color:rgba(255,86,96,.28)!important;
+  box-shadow:0 8px 28px rgba(0,0,0,.34)
+}
+
+/* Flechas de carrusel más claras */
+.row-arrow{width:3rem!important;height:3rem!important;box-shadow:0 14px 36px rgba(0,0,0,.40)!important}
+.row-arrow:hover{box-shadow:0 16px 42px rgba(0,0,0,.46),0 0 28px rgba(255,26,38,.19)!important}
+
+/* Reproductor: marco más limpio y barra estilo arcade */
+#gamePlayerShell{border-radius:18px;box-shadow:0 36px 90px rgba(0,0,0,.46),0 0 0 1px rgba(255,48,58,.08)}
+#stageBox{border-radius:18px 18px 0 0!important}
+#gameToolbar{
+  border-radius:0 0 18px 18px!important;
+  background:linear-gradient(180deg,rgba(16,5,7,.97),rgba(8,3,4,.985))!important;
+  border-top:1px solid rgba(255,67,77,.18)!important
+}
+#hideToolbarBtn{
+  background:rgba(7,3,4,.78)!important;
+  box-shadow:0 8px 28px rgba(0,0,0,.30)!important;
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)
+}
+#gamePlayerShell:fullscreen #hideToolbarBtn,
+#gamePlayerShell:-webkit-full-screen #hideToolbarBtn,
+#gamePlayerShell.obito-pseudo-fullscreen #hideToolbarBtn{
+  display:inline-flex!important;
+  top:50%!important;
+  left:50%!important;
+  transform:translate(-50%,-50%)!important
+}
+#floatingToolbarReveal{background:rgba(7,3,4,.74)!important;box-shadow:0 14px 42px rgba(0,0,0,.44),0 0 22px rgba(255,30,40,.10)!important}
+
+/* Walkthrough */
+#gmWalkthroughSection{
+  border-radius:20px!important;
+  border-color:rgba(255,55,65,.18)!important;
+  box-shadow:0 24px 64px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.025)!important
+}
+#gmWalkthroughSection>div:first-child{background:linear-gradient(180deg,rgba(30,7,10,.95),rgba(14,4,6,.96))!important}
+
+/* Navegación móvil con más presencia */
+@media(max-width:767px){
+  #homeView,#browseView{padding:.7rem!important}
+  #seoHero{min-height:auto;border-radius:20px!important;padding:20px!important}
+  #seoHero .hero-title{font-size:2.25rem!important}
+  #homeRows{gap:.8rem!important}
+  #homeRows>section{padding:11px 9px 13px;border-radius:18px}
+  [data-play].group{border-radius:15px!important}
+  #mobileDock{
+    border-radius:20px!important;
+    background:linear-gradient(180deg,rgba(17,5,8,.94),rgba(8,3,4,.92))!important;
+    box-shadow:0 18px 58px rgba(0,0,0,.52),0 0 0 1px rgba(255,55,65,.05),inset 0 1px 0 rgba(255,255,255,.05)!important
+  }
+  .mobile-dock-btn.active{background:linear-gradient(180deg,rgba(255,34,44,.18),rgba(255,34,44,.07))!important;color:#fff!important}
+  .mobile-dock-btn.active svg{filter:drop-shadow(0 0 8px rgba(255,45,55,.48))}
+  #gmVideoMount .gm-isolated-shell,#gmVideoMount .gm-isolated-frame{min-height:300px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .bg-glow:before,.bg-glow:after{animation:none!important}
+  .hero-cta.primary:after{transition:none!important}
+}
+
 </style>
 </head>
 <body class="text-white min-h-screen">
@@ -857,7 +1041,7 @@ header:after{content:"";position:absolute;left:12%;right:12%;bottom:-1px;height:
           <div class="obito-after-player-main min-w-0">
             <div id="stageAd" class="obito-ad-unit obito-ad-horizontal">
               <span class="obito-ad-label">Publicidad</span>
-          <ins class="adsbygoogle ".strip()
+          <ins class="adsbygoogle"
                style="display:block"
                data-ad-client="ca-pub-4725422900328256"
                data-ad-slot="6410282019"
@@ -868,7 +1052,7 @@ header:after{content:"";position:absolute;left:12%;right:12%;bottom:-1px;height:
           <div class="px-4 py-3 border-b border-red-900/40 flex items-center justify-between gap-3 bg-[#120607]">
             <div>
               <h3 class="font-extrabold text-white">Guía del juego</h3>
-              <p class="text-xs text-gray-400">Video tutorial de GameMonetize</p>
+              <p class="text-xs text-gray-400">Gameplay y guía del juego</p>
             </div>
             <span class="text-[10px] uppercase tracking-wider font-extrabold text-red-400">GameMonetize</span>
           </div>
@@ -883,7 +1067,7 @@ header:after{content:"";position:absolute;left:12%;right:12%;bottom:-1px;height:
           </div>
           <div id="squareAd" class="obito-ad-unit obito-ad-square">
             <span class="obito-ad-label">Publicidad</span>
-          <ins class="adsbygoogle ".strip()
+          <ins class="adsbygoogle"
                style="display:block"
                data-ad-client="ca-pub-4725422900328256"
                data-ad-slot="6410282019"
@@ -895,7 +1079,7 @@ header:after{content:"";position:absolute;left:12%;right:12%;bottom:-1px;height:
       <aside class="w-full xl:w-80 shrink-0">
         <div id="railAd" class="obito-ad-unit obito-ad-rail">
           <span class="obito-ad-label">Publicidad</span>
-          <ins class="adsbygoogle ".strip()
+          <ins class="adsbygoogle"
                style="display:block"
                data-ad-client="ca-pub-4725422900328256"
                data-ad-slot="6410282019"
@@ -1839,31 +2023,91 @@ function gmWalkthroughGameId(g){
   }
   return '';
 }
-var gmVideoSession=0,gmVideoMode='',gmPreviewTimer=null,gmPreviewCard=null;
-function ensureGMVideoHost(mount){
-  var old=document.getElementById('gamemonetize-video');
-  if(old&&old.parentNode)old.parentNode.removeChild(old);
-  var host=document.createElement('div');host.id='gamemonetize-video';host.className='w-full h-full';
-  mount.replaceChildren(host);return host;
+var gmVideoSession=0,gmVideoMode='',gmPreviewTimer=null,gmPreviewCard=null,gmVideoFrame=null;
+
+function gmVideoURL(gameid,getAds){
+  if(!/^[A-Za-z0-9]{20,80}$/.test(String(gameid||'')))return '';
+  var domain=(window.location.hostname||'').toLowerCase();
+  var qs=new URLSearchParams({
+    domain:domain,
+    gameid:String(gameid),
+    game:'',
+    getads:getAds?'true':'false',
+    color:'#ff2424'
+  });
+  return 'https://gamemonetize.video/index.php?'+qs.toString();
 }
+
 function destroyGMVideoPlayer(){
   gmVideoSession++;
-  var s=document.getElementById('gamemonetize-video-api');if(s)s.remove();
-  var host=document.getElementById('gamemonetize-video');if(host)host.replaceChildren();
-  try{delete window.VIDEO_OPTIONS;}catch(e){window.VIDEO_OPTIONS=undefined;}
+  if(gmVideoFrame&&gmVideoFrame.parentNode){
+    try{gmVideoFrame.src='about:blank';}catch(e){}
+    gmVideoFrame.remove();
+  }
+  gmVideoFrame=null;
   gmVideoMode='';
 }
+
 function loadGMVideoPlayer(gameid,mount,height,getAds,mode){
   if(!gameid||!mount)return false;
+  var url=gmVideoURL(gameid,getAds);
+  if(!url)return false;
+
   destroyGMVideoPlayer();
-  var session=++gmVideoSession;gmVideoMode=mode||'detail';
-  var host=ensureGMVideoHost(mount);
-  window.VIDEO_OPTIONS={gameid:String(gameid),width:'100%',height:height||'480px',color:'#ff2424',getAds:getAds?'true':'false'};
-  var script=document.createElement('script');script.type='text/javascript';script.id='gamemonetize-video-api';script.async=true;script.src='https://api.gamemonetize.com/video.js?v='+Date.now();
-  script.onerror=function(){if(session!==gmVideoSession)return;destroyGMVideoPlayer();if(mode==='detail'){var sec=$('#gmWalkthroughSection');if(sec)sec.classList.add('hidden');toast('No se pudo cargar el video de GameMonetize');}};
-  document.head.appendChild(script);
+  var session=++gmVideoSession;
+  gmVideoMode=mode||'detail';
+
+  mount.replaceChildren();
+
+  var shell=document.createElement('div');
+  shell.className='gm-isolated-shell';
+
+  var loader=document.createElement('div');
+  loader.className='gm-video-loader';
+  loader.innerHTML='<span class="ring"></span><span>'+(mode==='preview'?'Cargando gameplay…':'Cargando guía del juego…')+'</span>';
+
+  var fr=document.createElement('iframe');
+  fr.className='gm-isolated-frame';
+  fr.src=url;
+  fr.title=mode==='preview'?'Vista previa del juego':'Guía del juego - GameMonetize';
+  fr.setAttribute('sandbox','allow-scripts allow-forms allow-popups allow-presentation');
+  fr.setAttribute('allow','autoplay; fullscreen; picture-in-picture');
+  fr.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
+  fr.setAttribute('scrolling','no');
+  fr.setAttribute('frameborder','0');
+  fr.allowFullscreen=true;
+  fr.loading=mode==='preview'?'eager':'lazy';
+  fr.tabIndex=mode==='preview'?-1:0;
+  fr.style.height=height||'480px';
+  if(mode==='preview'){
+    fr.style.pointerEvents='none';
+    fr.setAttribute('aria-hidden','true');
+  }
+
+  fr.addEventListener('load',function(){
+    if(session!==gmVideoSession)return;
+    loader.classList.add('is-hidden');
+    setTimeout(function(){if(loader&&loader.parentNode)loader.remove();},260);
+  },{once:true});
+
+  shell.append(loader,fr);
+  mount.appendChild(shell);
+  gmVideoFrame=fr;
+
+  // Si el proveedor no responde, retiramos la vista previa para no dejar un bloque negro.
+  setTimeout(function(){
+    if(session!==gmVideoSession||!fr.isConnected)return;
+    if(mode==='preview' && loader.isConnected){
+      destroyGMVideoPlayer();
+      mount.replaceChildren();
+      var card=mount.closest('[data-gm-preview]');
+      if(card)card.classList.remove('previewing');
+    }
+  },9000);
+
   return true;
 }
+
 function clearGameMonetizeWalkthrough(){
   if(gmVideoMode==='detail')destroyGMVideoPlayer();
   var sec=$('#gmWalkthroughSection'),mount=$('#gmVideoMount');
@@ -1875,7 +2119,7 @@ function mountGameMonetizeWalkthrough(g){
   var gameid=gmWalkthroughGameId(g),sec=$('#gmWalkthroughSection'),mount=$('#gmVideoMount');
   if(!gameid||!sec||!mount)return;
   sec.classList.remove('hidden');
-  mount.innerHTML='<div class="gm-video-loader"><span class="ring"></span><span>Cargando walkthrough oficial de GameMonetize…</span></div>';
+  mount.innerHTML='<div class="gm-video-loader"><span class="ring"></span><span>Cargando guía del juego…</span></div>';
   requestAnimationFrame(function(){loadGMVideoPlayer(gameid,mount,'480px',true,'detail');});
   var mySession=gmVideoSession;
   setTimeout(function(){
