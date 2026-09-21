@@ -476,6 +476,13 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
   body.obito-no-scroll{overflow:hidden!important;overscroll-behavior:none!important;}
   @media(max-width:767px){ #gameView{padding:.45rem!important;}#gameToolbar{flex-wrap:nowrap!important;overflow-x:auto!important;gap:.25rem!important;scrollbar-width:none;}#gameToolbar::-webkit-scrollbar{display:none;}#gameToolbar #tbTitle{max-width:36vw;}#gameToolbar .tool-btn{flex:0 0 auto;min-width:38px;justify-content:center;}}
 
+
+  /* ===== GOOGLE ADSENSE: espacio debajo del reproductor ===== */
+  .obito-adsense-under-game{width:100%;min-height:100px;margin:14px 0 18px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,.055);border-radius:12px;background:rgba(255,255,255,.018);}
+  .obito-adsense-label{display:block;margin:0 0 7px;color:#6b7280;font-size:10px;font-weight:700;letter-spacing:.12em;text-align:center;text-transform:uppercase;}
+  .obito-adsense-under-game .adsbygoogle{width:100%;min-width:0;}
+  @media(max-width:640px){.obito-adsense-under-game{min-height:90px;margin:10px 0 14px;padding:8px;border-radius:10px;}}
+
 </style>
 </head>
 <body class="text-white min-h-screen">
@@ -681,6 +688,18 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
           <button id="tabBtn" class="tool-btn" title="Abrir en pestaña nueva"></button>
           <button id="fsBtn" class="tool-btn" title="Pantalla completa"></button>
         </div>
+
+        <!-- Google AdSense: unidad ObitoGames debajo del juego -->
+        <div id="obitoAdUnderGame" class="obito-adsense-under-game" aria-label="Publicidad">
+          <span class="obito-adsense-label">Publicidad</span>
+          <ins class="adsbygoogle"
+               style="display:block"
+               data-ad-client="ca-pub-4725422900328256"
+               data-ad-slot="6410282019"
+               data-ad-format="auto"
+               data-full-width-responsive="true"></ins>
+        </div>
+
         </div><!-- /gamePlayerShell -->
         <div id="stageAd" class="mt-4"></div>
         <section id="gmWalkthroughSection" class="hidden mt-4 rounded-2xl overflow-hidden border border-red-900/40 bg-black">
@@ -2108,5 +2127,15 @@ function init(){
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 </script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const ad = document.querySelector('#obitoAdUnderGame .adsbygoogle');
+  if (!ad || ad.dataset.adsbygoogleStatus) return;
+  try { (window.adsbygoogle = window.adsbygoogle || []).push({}); }
+  catch (err) { console.warn('AdSense ObitoGames:', err); }
+});
+</script>
+
 </body>
 </html>
