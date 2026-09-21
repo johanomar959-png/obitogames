@@ -1116,7 +1116,8 @@ def manifest_webmanifest():
         "short_name": "Obito Games",
         "start_url": "/",
         "scope": "/",
-        "display": "standalone",
+        "display": "fullscreen",
+        "display_override": ["fullscreen", "standalone"],
         "background_color": "#000000",
         "theme_color": "#070203",
         "orientation": "any",
@@ -1134,9 +1135,7 @@ def health():
 
 @app.route('/gm-video/<game_id>')
 def gm_video_bridge(game_id):
-    # Página aislada para el walkthrough de GameMonetize.
-    # Se sirve desde el mismo dominio para que video.js vea un hostname real;
-    # el frontend la carga dentro de un iframe sandbox sin navegación superior.
+    # Isolated GameMonetize walkthrough player using the official video.js API.
     gid = re.sub(r"[^A-Za-z0-9]", "", str(game_id or ""))
     if not re.fullmatch(r"[A-Za-z0-9]{20,80}", gid):
         abort(404)
@@ -1145,12 +1144,17 @@ def gm_video_bridge(game_id):
     ads = request.args.get("ads", "0") in {"1", "true", "yes"}
     token = re.sub(r"[^A-Za-z0-9_-]", "", request.args.get("token", ""))[:96]
     title = str(request.args.get("title") or "Juego").strip()[:140]
+    try:
+        requested_h = int(request.args.get("h", "0"))
+    except (TypeError, ValueError):
+        requested_h = 0
+    height_px = max(120, min(720, requested_h or (220 if mode == "preview" else 480)))
     domain = (request.host.split(":", 1)[0] or "").strip().lower()
 
     video_options = {
         "gameid": gid,
         "width": "100%",
-        "height": "100%",
+        "height": f"{height_px}px",
         "color": "#ff2424",
         "getAds": "true" if ads else "false",
     }
@@ -1166,6 +1170,7 @@ def gm_video_bridge(game_id):
     token_json = json.dumps(token)
     mode_json = json.dumps(mode)
     direct_json = json.dumps(direct_url)
+    height_json = json.dumps(height_px)
 
     page = f'''<!doctype html>
 <html lang="es">
@@ -1177,10 +1182,11 @@ html,body{{margin:0;width:100%;height:100%;overflow:hidden;background:transparen
 #gm-root{{position:absolute;inset:0;overflow:hidden;background:transparent}}
 #gamemonetize-video{{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:transparent}}
 #gamemonetize-video>*,#gamemonetize-video iframe,#gamemonetize-video video,#gamemonetize-video object,#gamemonetize-video embed{{display:block!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;border:0!important;margin:0!important;padding:0!important}}
-body.preview #gamemonetize-video,body.preview #gamemonetize-video *{{pointer-events:none!important;user-select:none!important}}
-#status{{position:absolute;inset:0;z-index:1;display:grid;place-items:center;pointer-events:none;background:radial-gradient(circle at 50% 45%,rgba(255,35,45,.10),transparent 34%)}}
-#status.hide{{opacity:0;visibility:hidden;transition:opacity .25s ease}}
-.spinner{{width:32px;height:32px;border-radius:50%;border:3px solid rgba(255,255,255,.12);border-top-color:#ff2938;animation:spin .9s linear infinite}}
+body.preview,body.preview *{{cursor:default!important}}
+body.preview #gamemonetize-video,body.preview #gamemonetize-video *{{pointer-events:none!important;user-select:none!important;-webkit-user-select:none!important}}
+#status{{position:absolute;inset:0;z-index:5;display:grid;place-items:center;pointer-events:none;background:transparent}}
+#status.hide{{opacity:0;visibility:hidden;transition:opacity .22s ease}}
+.spinner{{width:28px;height:28px;border-radius:50%;border:3px solid rgba(255,255,255,.16);border-top-color:#ff2938;animation:spin .85s linear infinite;filter:drop-shadow(0 0 8px rgba(255,41,56,.35))}}
 @keyframes spin{{to{{transform:rotate(360deg)}}}}
 </style>
 </head>
@@ -1189,89 +1195,115 @@ body.preview #gamemonetize-video,body.preview #gamemonetize-video *{{pointer-eve
 <script>
 (function(){{
   'use strict';
-  var TOKEN={token_json}, MODE={mode_json}, DIRECT={direct_json};
+  var TOKEN={token_json}, MODE={mode_json}, DIRECT={direct_json}, HEIGHT={height_json};
   var host=document.getElementById('gamemonetize-video');
   var status=document.getElementById('status');
-  var sentReady=false, directMounted=false, lastPlayer=null;
+  var sentReady=false, directMounted=false, lastNode=null;
   if(MODE==='preview')document.body.classList.add('preview');
 
+  if(MODE==='preview'){{
+    try{{window.open=function(){{return null;}};}}catch(e){{}}
+    document.addEventListener('click',function(e){{e.preventDefault();e.stopImmediatePropagation();}},true);
+    document.addEventListener('auxclick',function(e){{e.preventDefault();e.stopImmediatePropagation();}},true);
+  }}
+
   function send(type,extra){{
-    try{{ parent.postMessage(Object.assign({{type:type,token:TOKEN}},extra||{{}}),'*'); }}catch(e){{}}
+    try{{parent.postMessage(Object.assign({{type:type,token:TOKEN}},extra||{{}}),'*');}}catch(e){{}}
   }}
   function markReady(reason){{
-    if(sentReady)return;sentReady=true;
+    if(sentReady)return;
+    sentReady=true;
     if(status)status.classList.add('hide');
     send('OBITO_GM_READY',{{reason:reason||'player'}});
   }}
-  function mountDirect(reason,src){{
-    if(directMounted)return;
-    directMounted=true;
-    var target=src||DIRECT;
-    try{{
-      var u=new URL(target,location.href);
-      if(u.hostname!=='gamemonetize.video')target=DIRECT;
-    }}catch(e){{target=DIRECT;}}
-    host.replaceChildren();
-    var fr=document.createElement('iframe');
-    fr.src=target;
-    fr.title=MODE==='preview'?'Gameplay preview':'Guía del juego';
-    fr.setAttribute('allow','autoplay; fullscreen; picture-in-picture');
-    fr.setAttribute('allowfullscreen','true');
-    fr.setAttribute('scrolling','no');
-    fr.setAttribute('frameborder','0');
-    fr.referrerPolicy='strict-origin-when-cross-origin';
-    fr.onload=function(){{setTimeout(function(){{markReady(reason||'direct');}},MODE==='preview'?1300:650);}};
-    fr.onerror=function(){{send('OBITO_GM_ERROR',{{reason:'direct_iframe_error'}});}};
-    host.appendChild(fr);lastPlayer=fr;
+  function markFailed(reason){{
+    if(sentReady)return;
+    send('OBITO_GM_ERROR',{{reason:reason||'unavailable'}});
   }}
-  function decodeMarkupText(){{
-    var text=(host.textContent||'').trim();
-    if(!text || text.indexOf('<iframe')<0)return false;
+  function normalizePlayer(){{
     try{{
-      var doc=new DOMParser().parseFromString(text,'text/html');
-      var fr=doc.querySelector('iframe[src]');
-      if(fr){{mountDirect('decoded_markup',fr.getAttribute('src'));return true;}}
+      host.querySelectorAll('iframe,video,object,embed').forEach(function(el){{
+        el.style.width='100%';el.style.height='100%';el.style.minWidth='100%';el.style.minHeight='100%';
+        el.style.maxWidth='none';el.style.maxHeight='none';el.style.border='0';el.style.display='block';
+        if(MODE==='preview')el.style.pointerEvents='none';
+      }});
     }}catch(e){{}}
-    var m=text.match(/<iframe[^>]+src=["']([^"']+)["']/i);
-    if(m){{mountDirect('decoded_markup_regex',m[1]);return true;}}
+  }}
+  function wireNode(node,reason){{
+    if(!node||lastNode===node)return;
+    lastNode=node;normalizePlayer();
+    var fired=false;
+    function ready(){{
+      if(fired)return;fired=true;
+      setTimeout(function(){{markReady(reason||'player_ready');}},MODE==='preview'?1350:450);
+    }}
+    if(node.tagName==='VIDEO'){{
+      try{{node.muted=true;node.defaultMuted=true;node.playsInline=true;if(MODE==='preview'){{node.autoplay=true;var p=node.play();if(p&&p.catch)p.catch(function(){{}});}}}}catch(e){{}}
+      if(node.readyState>=2)ready();
+      else{{node.addEventListener('loadeddata',ready,{{once:true}});node.addEventListener('canplay',ready,{{once:true}});}}
+      node.addEventListener('error',function(){{markFailed('video_error');}},{{once:true}});
+    }}else if(node.tagName==='IFRAME'){{
+      node.setAttribute('allow','autoplay; fullscreen; picture-in-picture');
+      node.setAttribute('allowfullscreen','true');
+      node.addEventListener('load',ready,{{once:true}});
+      setTimeout(function(){{if(document.body.contains(node))ready();}},MODE==='preview'?2600:1200);
+    }}else{{
+      setTimeout(ready,MODE==='preview'?1800:700);
+    }}
+  }}
+  function decodeTextMarkup(){{
+    var raw=(host.textContent||'').trim();
+    if(!raw || raw.indexOf('<iframe')<0)return false;
+    try{{
+      var doc=new DOMParser().parseFromString(raw,'text/html');
+      var fr=doc.querySelector('iframe[src]');
+      if(fr){{
+        var src=fr.getAttribute('src')||'';
+        host.replaceChildren();
+        var out=document.createElement('iframe');
+        out.src=src;out.title=MODE==='preview'?'Gameplay preview':'Guía del juego';
+        out.setAttribute('allow','autoplay; fullscreen; picture-in-picture');out.setAttribute('allowfullscreen','true');
+        out.setAttribute('scrolling','no');out.setAttribute('frameborder','0');
+        host.appendChild(out);wireNode(out,'decoded_markup');return true;
+      }}
+    }}catch(e){{}}
     return false;
+  }}
+  function mountDirect(reason){{
+    if(directMounted||sentReady)return;
+    directMounted=true;host.replaceChildren();
+    var fr=document.createElement('iframe');
+    fr.src=DIRECT;fr.title=MODE==='preview'?'Gameplay preview':'Guía del juego';
+    fr.setAttribute('allow','autoplay; fullscreen; picture-in-picture');fr.setAttribute('allowfullscreen','true');
+    fr.setAttribute('scrolling','no');fr.setAttribute('frameborder','0');
+    host.appendChild(fr);wireNode(fr,reason||'direct_fallback');
   }}
   function inspect(){{
     if(sentReady)return;
-    if(decodeMarkupText())return;
-    var media=host.querySelector('video');
-    if(media){{
-      lastPlayer=media;
-      if(MODE==='preview'){{
-        try{{media.muted=true;media.defaultMuted=true;media.autoplay=true;media.playsInline=true;var p=media.play();if(p&&p.catch)p.catch(function(){{}});}}catch(e){{}}
-      }}
-      if(media.readyState>=2)markReady('video');
-      else{{media.addEventListener('loadeddata',function(){{markReady('video_loaded');}},{{once:true}});media.addEventListener('canplay',function(){{markReady('video_canplay');}},{{once:true}});}}
-      return;
-    }}
-    var fr=host.querySelector('iframe');
-    if(fr){{
-      if(lastPlayer!==fr){{
-        lastPlayer=fr;
-        fr.addEventListener('load',function(){{setTimeout(function(){{markReady('api_iframe');}},MODE==='preview'?1100:500);}},{{once:true}});
-      }}
-      setTimeout(function(){{if(!sentReady&&host.contains(fr))markReady('api_iframe_seen');}},MODE==='preview'?1800:900);
-    }}
+    if(decodeTextMarkup())return;
+    normalizePlayer();
+    var node=host.querySelector('video,iframe,object,embed');
+    if(node)wireNode(node,'api_player');
   }}
 
-  try{{new MutationObserver(function(){{setTimeout(inspect,60);}}).observe(host,{{childList:true,subtree:true,characterData:true}});}}catch(e){{}}
-  window.addEventListener('error',function(e){{if(!sentReady)send('OBITO_GM_SCRIPT_WARNING',{{message:String(e.message||'')}});}});
+  try{{new MutationObserver(function(){{setTimeout(inspect,40);}}).observe(host,{{childList:true,subtree:true,characterData:true}});}}catch(e){{}}
   window.VIDEO_OPTIONS={opts_json};
   var s=document.createElement('script');
   s.id='gamemonetize-video-api';
   s.src='https://api.gamemonetize.com/video.js?v='+Date.now();
   s.async=true;
-  s.onload=function(){{setTimeout(inspect,180);setTimeout(inspect,900);setTimeout(function(){{if(!sentReady&&!directMounted)mountDirect('api_fallback');}},4800);}};
-  s.onerror=function(){{mountDirect('script_error_fallback');}};
+  s.onload=function(){{setTimeout(inspect,120);setTimeout(inspect,700);setTimeout(inspect,1800);}};
+  s.onerror=function(){{if(MODE==='detail')mountDirect('script_fallback');else markFailed('script_error');}};
   document.head.appendChild(s);
-  setTimeout(inspect,600);
-  setTimeout(function(){{if(!sentReady&&!directMounted)mountDirect('timeout_fallback');}},6000);
-  setTimeout(function(){{if(!sentReady)send('OBITO_GM_TIMEOUT',{{reason:'final_timeout'}});}},14000);
+
+  setTimeout(inspect,500);
+  setTimeout(inspect,1800);
+  setTimeout(function(){{
+    if(sentReady)return;
+    if(MODE==='detail')mountDirect('detail_timeout_fallback');
+    else markFailed('preview_timeout');
+  }},6500);
+  setTimeout(function(){{if(!sentReady)markFailed('final_timeout');}},15000);
 }})();
 </script>
 </body>

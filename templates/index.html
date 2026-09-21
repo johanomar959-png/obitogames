@@ -1057,6 +1057,29 @@ body.obito-fullscreen-active{
   .gm-guide-error{min-height:min(56.25vw,330px);grid-template-columns:1fr;text-align:center;justify-items:center}.gm-guide-error-actions{justify-content:center}.gm-guide-error-icon{width:2.8rem;height:2.8rem}
 }
 
+
+/* ===== OBITO FINAL RELIABILITY OVERRIDES ===== */
+.group.gm-preview-active .tile-img{opacity:1!important;filter:brightness(.58) saturate(1.08) contrast(1.03)!important;transform:scale(1.045)!important}
+.group.gm-preview-active .gm-card-preview-slot{opacity:.82!important;transform:scale(1)!important;background:transparent!important}
+.group.gm-preview-active .gm-card-preview-slot .gm-isolated-frame{opacity:.88!important;background:transparent!important}
+.group.direct-preview-active .tile-img{opacity:.10!important}.group.direct-preview-active .game-preview-video{opacity:1!important}
+.group.preview-failed:after{display:none!important}
+.gm-card-preview-slot,.gm-card-preview-slot .gm-isolated-shell,.gm-card-preview-slot .gm-isolated-frame,.gm-card-preview-slot .gm-video-loader{background:transparent!important}
+#gmVideoMount{aspect-ratio:16/9;min-height:0!important;height:auto!important}
+#gmVideoMount .gm-isolated-shell,#gmVideoMount .gm-isolated-frame{width:100%!important;height:100%!important;min-height:0!important}
+#gmVideoMount .gm-isolated-frame{background:#050203!important}
+@media(max-width:767px){ #gmVideoMount{aspect-ratio:16/9;height:auto!important;min-height:0!important}#gmVideoMount .gm-isolated-shell,#gmVideoMount .gm-isolated-frame{height:100%!important;min-height:0!important}}
+html.obito-fullscreen-active,body.obito-fullscreen-active{margin:0!important;padding:0!important;width:100%!important;height:100%!important;background:#000!important;overflow:hidden!important}
+body.obito-fullscreen-active>header,body.obito-fullscreen-active>#mobileDock,body.obito-fullscreen-active>#sidebar,body.obito-fullscreen-active>#sidebarBackdrop{display:none!important}
+html body #gamePlayerShell.obito-pseudo-fullscreen{position:fixed!important;inset:0!important;left:0!important;top:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100dvh!important;min-width:100vw!important;min-height:100dvh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;transform:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#000!important;z-index:2147483640!important}
+@supports not (height:100dvh){html body #gamePlayerShell.obito-pseudo-fullscreen{height:var(--obito-vv-h,100vh)!important;min-height:var(--obito-vv-h,100vh)!important;width:var(--obito-vv-w,100vw)!important;min-width:var(--obito-vv-w,100vw)!important}}
+html body #gamePlayerShell.obito-pseudo-fullscreen #stageBox,html body #gamePlayerShell.obito-pseudo-fullscreen #stageWrap,html body #gamePlayerShell.obito-pseudo-fullscreen #stageInner,html body #gamePlayerShell.obito-pseudo-fullscreen #stageInner>iframe{margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;max-width:none!important;max-height:none!important}
+html body #gamePlayerShell.obito-pseudo-fullscreen #stageBox{width:100%!important;min-width:0!important;flex:1 1 0!important}
+html body #gamePlayerShell.obito-pseudo-fullscreen.obito-toolbar-hidden #stageBox{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+html body #gamePlayerShell.obito-pseudo-fullscreen #stageWrap,html body #gamePlayerShell.obito-pseudo-fullscreen #stageInner,html body #gamePlayerShell.obito-pseudo-fullscreen #stageInner>iframe{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+#iosFullscreenTip{position:fixed;inset:0;z-index:2147483646;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.62);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.ios-fs-card{width:min(440px,92vw);display:grid;grid-template-columns:auto 1fr;gap:14px;padding:18px;border-radius:20px;background:linear-gradient(145deg,#18070a,#080304);border:1px solid rgba(255,70,80,.24);box-shadow:0 25px 80px rgba(0,0,0,.62);color:#fff}.ios-fs-icon{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#ff303d,#b90013);font-size:22px;font-weight:900}.ios-fs-card strong{font-size:15px}.ios-fs-card p{margin:5px 0 0;color:#c3c8d0;font-size:12px;line-height:1.45}.ios-fs-card button{grid-column:1/-1;min-height:42px;border-radius:12px;background:linear-gradient(135deg,#ff303d,#cb0017);font-weight:900;color:#fff}
+
 </style>
 </head>
 <body class="text-white min-h-screen">
@@ -2220,15 +2243,32 @@ function fitStageToViewport(){var g=state.current,hint=$('#rotateHint'),box=$('#
 function applyOrientation(){fitStageToViewport();}
 function lockGameOrientation(){if(!screen.orientation||typeof screen.orientation.lock!=='function'||!state.current)return Promise.resolve();var o=state.current.orientation||'auto';if(o==='horizontal')return screen.orientation.lock('landscape').catch(function(){});if(o==='vertical')return screen.orientation.lock('portrait').catch(function(){});return Promise.resolve();}
 function unlockGameOrientation(){try{if(screen.orientation&&typeof screen.orientation.unlock==='function')screen.orientation.unlock();}catch(e){}}
-function enterPseudoFullscreen(){var s=playerShell();if(!s)return;syncFullscreenViewport();s.classList.add('obito-pseudo-fullscreen');document.documentElement.classList.add('obito-fullscreen-active');document.body.classList.add('obito-no-scroll','obito-fullscreen-active');fitStageToViewport();refreshFullscreenButton();lockGameOrientation();}
-function exitPseudoFullscreen(){var s=playerShell();if(!s)return;s.classList.remove('obito-pseudo-fullscreen','obito-toolbar-hidden');document.documentElement.classList.remove('obito-fullscreen-active');document.body.classList.remove('obito-no-scroll','obito-fullscreen-active');document.documentElement.style.removeProperty('--obito-vv-w');document.documentElement.style.removeProperty('--obito-vv-h');unlockGameOrientation();fitStageToViewport();refreshFullscreenButton();}
+var pseudoFullscreenHome=null;
+function isStandaloneMode(){return !!(window.navigator.standalone||window.matchMedia('(display-mode: standalone)').matches||window.matchMedia('(display-mode: fullscreen)').matches);}
+function enterPseudoFullscreen(){
+  var s=playerShell();if(!s)return;syncFullscreenViewport();
+  if(!pseudoFullscreenHome){var marker=document.createComment('obito-player-home');if(s.parentNode){s.parentNode.insertBefore(marker,s);pseudoFullscreenHome=marker;document.body.appendChild(s);}}
+  s.classList.add('obito-pseudo-fullscreen');document.documentElement.classList.add('obito-fullscreen-active');document.body.classList.add('obito-no-scroll','obito-fullscreen-active');
+  try{window.scrollTo(0,0);}catch(e){}fitStageToViewport();refreshFullscreenButton();lockGameOrientation();
+}
+function exitPseudoFullscreen(){
+  var s=playerShell();if(!s)return;s.classList.remove('obito-pseudo-fullscreen','obito-toolbar-hidden');
+  if(pseudoFullscreenHome&&pseudoFullscreenHome.parentNode){pseudoFullscreenHome.parentNode.insertBefore(s,pseudoFullscreenHome);pseudoFullscreenHome.remove();}pseudoFullscreenHome=null;
+  document.documentElement.classList.remove('obito-fullscreen-active');document.body.classList.remove('obito-no-scroll','obito-fullscreen-active');
+  document.documentElement.style.removeProperty('--obito-vv-w');document.documentElement.style.removeProperty('--obito-vv-h');unlockGameOrientation();fitStageToViewport();refreshFullscreenButton();
+}
+function showIOSFullscreenHelp(){
+  if(!isIPhoneSafari()||isStandaloneMode()||sessionStorage.getItem('obito_ios_fs_tip'))return;sessionStorage.setItem('obito_ios_fs_tip','1');
+  var m=document.createElement('div');m.id='iosFullscreenTip';m.innerHTML='<div class="ios-fs-card"><div class="ios-fs-icon">↗</div><div><strong>Pantalla completa real en iPhone</strong><p>Safari no permite poner un juego HTML/iframe en fullscreen real. Para ocultar también la barra y las pestañas de Safari: Compartir → Añadir a pantalla de inicio y abre Obito Games desde el icono.</p></div><button type="button">Entendido</button></div>';
+  document.body.appendChild(m);m.querySelector('button').addEventListener('click',function(){m.remove();});
+}
 function refreshFullscreenButton(){var btn=$('#fsBtn');if(btn)btn.innerHTML=icon(isGameFullscreen()?'minimize':'maximize','w-4 h-4');}
 function requestGameFullscreen(){
   var s=playerShell();if(!s)return;
   syncFullscreenViewport();
   /* iPhone Safari no permite fullscreen real para DIV/iframe de juegos; usamos viewport completo.
      iPad sí puede soportar requestFullscreen, por eso ya no lo forzamos al modo pseudo. */
-  if(isIPhoneSafari()){enterPseudoFullscreen();return;}
+  if(isIPhoneSafari()){enterPseudoFullscreen();setTimeout(showIOSFullscreenHelp,250);return;}
   var fn=s.requestFullscreen||s.webkitRequestFullscreen||s.msRequestFullscreen;
   if(!fn){enterPseudoFullscreen();return;}
   try{
@@ -2290,8 +2330,9 @@ function gmDirectGuideUrl(gameid,g,getAds){
   var q=new URLSearchParams({domain:location.hostname,gameid:String(gameid||''),game:(g&&g.title)||'Juego',getads:getAds?'true':'false',color:'#ff2424'});
   return 'https://gamemonetize.video/index.php?'+q.toString();
 }
-function gmBridgeUrl(gameid,mode,getAds,token,g){
-  var q=new URLSearchParams({mode:mode==='preview'?'preview':'detail',ads:getAds?'1':'0',token:token,title:(g&&g.title)||'Juego'});
+function gmBridgeUrl(gameid,mode,getAds,token,g,heightPx){
+  var h=Math.max(120,Math.min(720,parseInt(heightPx,10)||(mode==='preview'?220:480)));
+  var q=new URLSearchParams({mode:mode==='preview'?'preview':'detail',ads:getAds?'1':'0',token:token,title:(g&&g.title)||'Juego',h:String(h)});
   return '/gm-video/'+encodeURIComponent(String(gameid||''))+'?'+q.toString();
 }
 function gmLoaderText(mount,text){
@@ -2303,34 +2344,32 @@ function loadGMVideoPlayer(gameid,mount,height,getAds,mode,onReady,onFail,g){
   if(!gameid||!mount||!/^[A-Za-z0-9]{20,80}$/.test(String(gameid)))return false;
   destroyGMVideoPlayer(role);
   var token=gmSafeToken(),ready=false;
+  var heightPx=Math.max(120,Math.min(720,parseInt(String(height||'').replace(/[^0-9]/g,''),10)||(mode==='preview'?220:480)));
   mount.replaceChildren();
   var shell=document.createElement('div');shell.className='gm-isolated-shell';
   var loader=document.createElement('div');loader.className='gm-video-loader';
   loader.innerHTML='<span class="ring"></span><span>'+(mode==='preview'?'Preparando gameplay…':'Cargando guía del juego…')+'</span>';
   var fr=document.createElement('iframe');
   fr.className='gm-isolated-frame';fr.title=mode==='preview'?'Vista previa del juego':'Guía del juego - GameMonetize';
-  fr.setAttribute('sandbox','allow-scripts allow-forms allow-popups allow-presentation');
   fr.setAttribute('allow','autoplay; fullscreen; picture-in-picture');
-  fr.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
+  fr.setAttribute('allowfullscreen','true');fr.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
   fr.setAttribute('scrolling','no');fr.setAttribute('frameborder','0');fr.allowFullscreen=true;
-  fr.loading=mode==='preview'?'eager':'lazy';fr.tabIndex=mode==='preview'?-1:0;fr.style.height=height||'480px';
+  fr.loading='eager';fr.tabIndex=mode==='preview'?-1:0;fr.style.height=heightPx+'px';fr.style.background='transparent';
   if(mode==='preview'){fr.style.pointerEvents='none';fr.setAttribute('aria-hidden','true');}
-  fr.src=gmBridgeUrl(gameid,mode,getAds,token,g);
+  fr.src=gmBridgeUrl(gameid,mode,getAds,token,g,heightPx);
   shell.append(loader,fr);mount.appendChild(shell);
-
   function cleanup(){var p=gmPlayers[role];if(p&&p.token===token&&p.messageHandler)window.removeEventListener('message',p.messageHandler);}
-  function fail(reason){var p=gmPlayers[role];if(!p||p.token!==token||ready)return;cleanup();if(p.timer)clearTimeout(p.timer);if(typeof onFail==='function')onFail(reason||'timeout');}
+  function fail(reason){var p=gmPlayers[role];if(!p||p.token!==token||ready)return;cleanup();if(p.timer)clearTimeout(p.timer);gmPlayers[role]=null;if(typeof onFail==='function')onFail(reason||'timeout');}
   function messageHandler(ev){
     var p=gmPlayers[role],d=ev&&ev.data;
     if(!p||p.token!==token||ev.source!==fr.contentWindow||!d||d.token!==token)return;
     if(d.type==='OBITO_GM_READY'){
-      if(ready)return;ready=true;cleanup();if(p.timer)clearTimeout(p.timer);
-      loader.classList.add('is-hidden');
-      setTimeout(function(){if(loader.parentNode)loader.remove();if(typeof onReady==='function')onReady(d.reason||'ready');},220);
+      if(ready)return;ready=true;cleanup();if(p.timer)clearTimeout(p.timer);loader.classList.add('is-hidden');
+      setTimeout(function(){if(loader.parentNode)loader.remove();if(typeof onReady==='function')onReady(d.reason||'ready');},180);
     }else if(d.type==='OBITO_GM_TIMEOUT'||d.type==='OBITO_GM_ERROR')fail(d.reason||d.type);
   }
   window.addEventListener('message',messageHandler);
-  var timer=setTimeout(function(){fail('parent_timeout');},15500);
+  var timer=setTimeout(function(){fail('parent_timeout');},18000);
   gmPlayers[role]={token:token,frame:fr,mount:mount,messageHandler:messageHandler,timer:timer,mode:mode,gameid:String(gameid),ready:false};
   return true;
 }
@@ -2860,8 +2899,8 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     var v=card&&card.querySelector('.game-preview-video');if(!v)return false;
     var src=v.dataset.src;if(!src)return false;
     card.classList.remove('preview-failed');card.classList.add('preview-loading');
-    function ready(){var t=directTimers.get(card);if(t)clearTimeout(t);card.classList.remove('preview-loading');card.classList.add('previewing');try{v.muted=true;v.playsInline=true;var p=v.play();if(p&&p.catch)p.catch(function(){});}catch(e){}}
-    function fail(){card.classList.remove('preview-loading','previewing');card.classList.add('preview-failed');}
+    function ready(){var t=directTimers.get(card);if(t)clearTimeout(t);card.classList.remove('preview-loading');card.classList.add('previewing','direct-preview-active');try{v.muted=true;v.playsInline=true;var p=v.play();if(p&&p.catch)p.catch(function(){});}catch(e){}}
+    function fail(){card.classList.remove('preview-loading','previewing','direct-preview-active');}
     if(v.readyState>=2){ready();return true;}
     if(!v.src)v.src=src;
     v.addEventListener('loadeddata',ready,{once:true});v.addEventListener('canplay',ready,{once:true});v.addEventListener('error',fail,{once:true});
@@ -2876,7 +2915,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   }
   function actuallyStopGMPreview(card){
     destroyGMVideoPlayer('preview');
-    if(card){card.classList.remove('preview-loading','previewing','preview-failed');var slot=card.querySelector('.gm-card-preview-slot');if(slot)slot.replaceChildren();}
+    if(card){card.classList.remove('preview-loading','previewing','preview-failed','gm-preview-active','direct-preview-active');var slot=card.querySelector('.gm-card-preview-slot');if(slot)slot.replaceChildren();}
     if(card===gmPreviewCard)gmPreviewCard=null;
   }
   function startGMPreview(card){
@@ -2893,9 +2932,9 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
       var game={title:card.getAttribute('aria-label')||'Juego'};
       loadGMVideoPlayer(gid,slot,h+'px',false,'preview',function(){
         if(gmPreviewCard!==card||!document.body.contains(card))return;
-        card.classList.remove('preview-loading');card.classList.add('previewing');
+        card.classList.remove('preview-loading');card.classList.add('previewing','gm-preview-active');
       },function(){
-        if(gmPreviewCard===card){destroyGMVideoPlayer('preview');card.classList.remove('preview-loading','previewing');card.classList.add('preview-failed');slot.replaceChildren();}
+        if(gmPreviewCard===card){destroyGMVideoPlayer('preview');card.classList.remove('preview-loading','previewing','gm-preview-active');slot.replaceChildren();}
       },game);
     },420);
   }
@@ -2905,7 +2944,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     if(card&&card===gmPreviewCard){
       if(gmPreviewStopTimer)clearTimeout(gmPreviewStopTimer);
       gmPreviewStopTimer=setTimeout(function(){actuallyStopGMPreview(card);gmPreviewStopTimer=null;},180);
-    }else if(card){card.classList.remove('preview-loading','previewing','preview-failed');}
+    }else if(card){card.classList.remove('preview-loading','previewing','preview-failed','gm-preview-active','direct-preview-active');}
   }
   document.addEventListener('pointerover',function(e){
     if(e.pointerType==='touch'||window.matchMedia('(hover: none)').matches)return;
