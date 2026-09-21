@@ -573,11 +573,16 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ fontFamily:{ display:['Or
 .group:hover .tile-img{transform:scale(1.075)!important;filter:saturate(1.1) contrast(1.04) brightness(.82)}
 .tile-play{z-index:12!important;opacity:0!important;transform:translateY(-4px) scale(.96)!important;background:rgba(8,3,4,.82)!important;border:1px solid rgba(255,255,255,.15)!important;box-shadow:0 8px 30px rgba(0,0,0,.3)!important}
 .group:hover .tile-play,.group.previewing .tile-play{opacity:1!important;transform:none!important}
-.game-preview-video,.gm-card-preview-slot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.025);transition:opacity .24s ease,transform .45s ease;pointer-events:none;background:#090203;z-index:6;overflow:hidden}
+.game-preview-video,.gm-card-preview-slot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.025);transition:opacity .28s ease,transform .48s ease;pointer-events:none;background:transparent;z-index:6;overflow:hidden}
 .group.previewing .game-preview-video,.group.previewing .gm-card-preview-slot{opacity:1;transform:scale(1)}
+.group.preview-loading .tile-img{filter:saturate(1.05) contrast(1.03) brightness(.78)!important}
+.group.preview-loading:before{content:"";position:absolute;inset:0;z-index:9;pointer-events:none;background:linear-gradient(110deg,transparent 28%,rgba(255,255,255,.055) 42%,rgba(255,48,58,.10) 50%,rgba(255,255,255,.055) 58%,transparent 72%);transform:translateX(-130%);animation:obitoPreviewSweep 1.25s ease-in-out infinite}
+@keyframes obitoPreviewSweep{to{transform:translateX(130%)}}
 .gm-card-preview-slot #gamemonetize-video,.gm-card-preview-slot #gamemonetize-video>*,.gm-card-preview-slot iframe,.gm-card-preview-slot video{width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;object-fit:cover!important;border:0!important}
 .preview-badge{position:absolute;left:.65rem;top:.65rem;z-index:13;display:flex;align-items:center;gap:.38rem;padding:.34rem .58rem;border-radius:999px;background:rgba(5,2,3,.78);border:1px solid rgba(255,255,255,.14);-webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);font-size:.61rem;font-weight:900;letter-spacing:.08em;color:#fff;opacity:0;transform:translateY(-4px);transition:.2s}
-.group.previewing .preview-badge{opacity:1;transform:none}
+.group.previewing .preview-badge,.group.preview-loading .preview-badge{opacity:1;transform:none}
+.group.preview-loading .preview-badge{color:#fecaca}
+.group.preview-loading .preview-badge:after{content:"CARGANDO";font-size:.55rem;letter-spacing:.09em;margin-left:.18rem;color:#fca5a5}
 .preview-badge:before{content:"";width:.42rem;height:.42rem;border-radius:50%;background:#ff3131;box-shadow:0 0 12px rgba(255,49,49,.8)}
 .tile-content{z-index:11!important}
 .tile-content:before{content:"";position:absolute;inset:-2.2rem -1rem -1rem;background:linear-gradient(to top,rgba(0,0,0,.92),rgba(0,0,0,.30),transparent);z-index:-1;pointer-events:none}
@@ -828,6 +833,19 @@ header .font-display{filter:drop-shadow(0 0 13px rgba(255,35,45,.16))}
   .bg-glow:before,.bg-glow:after{animation:none!important}
   .hero-cta.primary:after{transition:none!important}
 }
+
+
+/* ===== PREVIEW SAFE MODE + MICROINTERACTIONS ===== */
+.gm-card-preview-slot .gm-isolated-shell,.gm-card-preview-slot .gm-isolated-frame{background:transparent!important}
+.gm-card-preview-slot .gm-isolated-frame{opacity:.98}
+.group.previewing .tile-img{opacity:.14!important;transform:scale(1.035)!important}
+.group.preview-failed .tile-img{filter:saturate(1.03) brightness(.88)!important}
+.group.preview-failed .preview-badge{opacity:0!important}
+[data-play].group .tile-content{transition:transform .26s ease,opacity .22s ease}
+[data-play].group:hover .tile-content{transform:translateY(-2px)}
+[data-play].group.previewing .tile-content{opacity:.96}
+#homeRows>section:hover{border-color:rgba(255,70,80,.10);box-shadow:0 18px 52px rgba(0,0,0,.18),0 0 32px rgba(180,0,20,.035)}
+@media(max-width:767px){.group.preview-loading:before{display:none!important}}
 
 </style>
 </head>
@@ -2023,95 +2041,66 @@ function gmWalkthroughGameId(g){
   }
   return '';
 }
-var gmVideoSession=0,gmVideoMode='',gmPreviewTimer=null,gmPreviewCard=null,gmVideoFrame=null;
+var gmVideoSession=0,gmVideoMode='',gmPreviewTimer=null,gmPreviewCard=null,gmVideoFrame=null,gmVideoReady=false;
 
-function gmVideoURL(gameid,getAds){
-  if(!/^[A-Za-z0-9]{20,80}$/.test(String(gameid||'')))return '';
-  var domain=(window.location.hostname||'').toLowerCase();
-  var qs=new URLSearchParams({
-    domain:domain,
-    gameid:String(gameid),
-    game:'',
-    getads:getAds?'true':'false',
-    color:'#ff2424'
-  });
-  return 'https://gamemonetize.video/index.php?'+qs.toString();
+function gmSafeToken(){return 'gm_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);}
+
+function gmEmbedDocument(gameid,getAds,token,mode){
+  var gid=String(gameid||'').replace(/[^A-Za-z0-9]/g,'');
+  var ads=getAds?'true':'false';
+  var label=mode==='preview'?'Vista previa':'Guía del juego';
+  var api='https://api.gamemonetize.com/video.js?v='+Date.now();
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'+
+    '<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}#gamemonetize-video{position:absolute;inset:0;width:100%;height:100%;background:transparent}#gamemonetize-video iframe,#gamemonetize-video video,#gamemonetize-video>*{width:100%!important;height:100%!important;min-height:100%!important;border:0!important;display:block!important}body:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,rgba(255,38,48,.09),transparent 36%);pointer-events:none}</style></head><body aria-label="'+label+'">'+
+    '<div id="gamemonetize-video"></div>'+
+    '<script>window.VIDEO_OPTIONS={gameid:"'+gid+'",width:"100%",height:"100%",color:"#ff2424",getAds:"'+ads+'"};(function(){var sent=false,host=document.getElementById("gamemonetize-video");function ready(){if(sent)return;var media=host.querySelector("iframe,video,object,embed");if(media||host.children.length){sent=true;parent.postMessage({type:"OBITO_GM_READY",token:"'+token+'"},"*")}}try{new MutationObserver(function(){setTimeout(ready,120)}).observe(host,{childList:true,subtree:true})}catch(e){}setTimeout(ready,700);setTimeout(function(){if(!sent)parent.postMessage({type:"OBITO_GM_TIMEOUT",token:"'+token+'"},"*")},6500)})();<\/script>'+
+    '<script src="'+api+'"><\/script></body></html>';
 }
 
 function destroyGMVideoPlayer(){
-  gmVideoSession++;
-  if(gmVideoFrame&&gmVideoFrame.parentNode){
-    try{gmVideoFrame.src='about:blank';}catch(e){}
-    gmVideoFrame.remove();
-  }
-  gmVideoFrame=null;
-  gmVideoMode='';
+  gmVideoSession++;gmVideoReady=false;
+  if(gmVideoFrame&&gmVideoFrame.parentNode){try{gmVideoFrame.src='about:blank';}catch(e){}gmVideoFrame.remove();}
+  gmVideoFrame=null;gmVideoMode='';
 }
 
-function loadGMVideoPlayer(gameid,mount,height,getAds,mode){
-  if(!gameid||!mount)return false;
-  var url=gmVideoURL(gameid,getAds);
-  if(!url)return false;
-
+function loadGMVideoPlayer(gameid,mount,height,getAds,mode,onReady,onFail){
+  if(!gameid||!mount||!/^[A-Za-z0-9]{20,80}$/.test(String(gameid)))return false;
   destroyGMVideoPlayer();
-  var session=++gmVideoSession;
-  gmVideoMode=mode||'detail';
-
+  var session=++gmVideoSession,token=gmSafeToken();
+  gmVideoMode=mode||'detail';gmVideoReady=false;
   mount.replaceChildren();
 
-  var shell=document.createElement('div');
-  shell.className='gm-isolated-shell';
-
-  var loader=document.createElement('div');
-  loader.className='gm-video-loader';
-  loader.innerHTML='<span class="ring"></span><span>'+(mode==='preview'?'Cargando gameplay…':'Cargando guía del juego…')+'</span>';
-
+  var shell=document.createElement('div');shell.className='gm-isolated-shell';
+  var loader=document.createElement('div');loader.className='gm-video-loader';
+  loader.innerHTML='<span class="ring"></span><span>'+(mode==='preview'?'Preparando gameplay…':'Cargando guía del juego…')+'</span>';
   var fr=document.createElement('iframe');
-  fr.className='gm-isolated-frame';
-  fr.src=url;
-  fr.title=mode==='preview'?'Vista previa del juego':'Guía del juego - GameMonetize';
+  fr.className='gm-isolated-frame';fr.title=mode==='preview'?'Vista previa del juego':'Guía del juego - GameMonetize';
   fr.setAttribute('sandbox','allow-scripts allow-forms allow-popups allow-presentation');
   fr.setAttribute('allow','autoplay; fullscreen; picture-in-picture');
-  fr.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
-  fr.setAttribute('scrolling','no');
-  fr.setAttribute('frameborder','0');
-  fr.allowFullscreen=true;
-  fr.loading=mode==='preview'?'eager':'lazy';
-  fr.tabIndex=mode==='preview'?-1:0;
-  fr.style.height=height||'480px';
-  if(mode==='preview'){
-    fr.style.pointerEvents='none';
-    fr.setAttribute('aria-hidden','true');
+  fr.setAttribute('referrerpolicy','strict-origin-when-cross-origin');fr.setAttribute('scrolling','no');fr.setAttribute('frameborder','0');
+  fr.allowFullscreen=true;fr.loading=mode==='preview'?'eager':'lazy';fr.tabIndex=mode==='preview'?-1:0;fr.style.height=height||'480px';
+  if(mode==='preview'){fr.style.pointerEvents='none';fr.setAttribute('aria-hidden','true');}
+  fr.srcdoc=gmEmbedDocument(gameid,getAds,token,mode);
+
+  function cleanupListener(){window.removeEventListener('message',messageHandler);}
+  function fail(){if(session!==gmVideoSession)return;cleanupListener();gmVideoReady=false;if(typeof onFail==='function')onFail();}
+  function messageHandler(ev){
+    var d=ev&&ev.data;if(!d||d.token!==token||session!==gmVideoSession)return;
+    if(d.type==='OBITO_GM_READY'){
+      cleanupListener();gmVideoReady=true;loader.classList.add('is-hidden');
+      setTimeout(function(){if(loader&&loader.parentNode)loader.remove();if(session===gmVideoSession&&typeof onReady==='function')onReady();},420);
+    }else if(d.type==='OBITO_GM_TIMEOUT'){fail();}
   }
-
-  fr.addEventListener('load',function(){
-    if(session!==gmVideoSession)return;
-    loader.classList.add('is-hidden');
-    setTimeout(function(){if(loader&&loader.parentNode)loader.remove();},260);
-  },{once:true});
-
-  shell.append(loader,fr);
-  mount.appendChild(shell);
-  gmVideoFrame=fr;
-
-  // Si el proveedor no responde, retiramos la vista previa para no dejar un bloque negro.
-  setTimeout(function(){
-    if(session!==gmVideoSession||!fr.isConnected)return;
-    if(mode==='preview' && loader.isConnected){
-      destroyGMVideoPlayer();
-      mount.replaceChildren();
-      var card=mount.closest('[data-gm-preview]');
-      if(card)card.classList.remove('previewing');
-    }
-  },9000);
-
+  window.addEventListener('message',messageHandler);
+  shell.append(loader,fr);mount.appendChild(shell);gmVideoFrame=fr;
+  setTimeout(function(){if(session!==gmVideoSession||gmVideoReady)return;fail();},7600);
   return true;
 }
 
 function clearGameMonetizeWalkthrough(){
   if(gmVideoMode==='detail')destroyGMVideoPlayer();
   var sec=$('#gmWalkthroughSection'),mount=$('#gmVideoMount');
-  if(mount)mount.innerHTML='<div class="gm-video-loader"><span class="ring"></span><span>Cargando video del juego…</span></div>';
+  if(mount)mount.replaceChildren();
   if(sec)sec.classList.add('hidden');
 }
 function mountGameMonetizeWalkthrough(g){
@@ -2119,14 +2108,9 @@ function mountGameMonetizeWalkthrough(g){
   var gameid=gmWalkthroughGameId(g),sec=$('#gmWalkthroughSection'),mount=$('#gmVideoMount');
   if(!gameid||!sec||!mount)return;
   sec.classList.remove('hidden');
-  mount.innerHTML='<div class="gm-video-loader"><span class="ring"></span><span>Cargando guía del juego…</span></div>';
-  requestAnimationFrame(function(){loadGMVideoPlayer(gameid,mount,'480px',true,'detail');});
-  var mySession=gmVideoSession;
-  setTimeout(function(){
-    if(gmVideoMode!=='detail'||mySession!==gmVideoSession)return;
-    var host=document.getElementById('gamemonetize-video');
-    if(!host||!host.children.length){destroyGMVideoPlayer();sec.classList.add('hidden');}
-  },10000);
+  loadGMVideoPlayer(gameid,mount,'480px',true,'detail',function(){sec.classList.remove('hidden');},function(){
+    destroyGMVideoPlayer();mount.replaceChildren();sec.classList.add('hidden');
+  });
 }
 
 function finishGameView(g){
@@ -2610,37 +2594,54 @@ function init(){
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 
-// ===== PREVIEWS: video directo + walkthrough oficial GameMonetize =====
+// ===== PREVIEWS SEGUROS: nunca sustituyen una miniatura hasta que el video esté listo =====
 (function(){
+  var directTimers=new WeakMap();
   function startDirectPreview(card){
     var v=card&&card.querySelector('.game-preview-video');if(!v)return false;
-    var src=v.dataset.src;if(src&&!v.src)v.src=src;
-    card.classList.add('previewing');var p=v.play();if(p&&p.catch)p.catch(function(){});return true;
+    var src=v.dataset.src;if(!src)return false;
+    card.classList.remove('preview-failed');card.classList.add('preview-loading');
+    function ready(){card.classList.remove('preview-loading');card.classList.add('previewing');var p=v.play();if(p&&p.catch)p.catch(function(){});}
+    function fail(){card.classList.remove('preview-loading','previewing');card.classList.add('preview-failed');}
+    if(v.readyState>=2){ready();return true;}
+    if(!v.src)v.src=src;
+    v.addEventListener('loadeddata',ready,{once:true});v.addEventListener('canplay',ready,{once:true});v.addEventListener('error',fail,{once:true});
+    var timer=setTimeout(function(){if(!card.classList.contains('previewing'))fail();},4500);directTimers.set(card,timer);
+    try{v.load();}catch(e){}
+    return true;
   }
-  function stopDirectPreview(card){var v=card&&card.querySelector('.game-preview-video');if(!v)return;try{v.pause();v.currentTime=0;}catch(e){}}
+  function stopDirectPreview(card){
+    var timer=directTimers.get(card);if(timer)clearTimeout(timer);
+    var v=card&&card.querySelector('.game-preview-video');if(!v)return;
+    try{v.pause();v.currentTime=0;}catch(e){}
+  }
   function startGMPreview(card){
     var gid=card&&card.dataset?card.dataset.gmPreview:'';var slot=card&&card.querySelector('.gm-card-preview-slot');
     if(!gid||!slot)return;
     if(gmPreviewTimer)clearTimeout(gmPreviewTimer);
-    gmPreviewCard=card;
+    gmPreviewCard=card;card.classList.remove('preview-failed');
     gmPreviewTimer=setTimeout(function(){
       if(gmPreviewCard!==card||!document.body.contains(card))return;
       var h=Math.max(120,Math.round(card.getBoundingClientRect().height||180));
-      card.classList.add('previewing');slot.innerHTML='<div class="gm-video-loader"><span class="ring"></span></div>';
-      loadGMVideoPlayer(gid,slot,h+'px',false,'preview');
-    },480);
+      card.classList.add('preview-loading');
+      loadGMVideoPlayer(gid,slot,h+'px',false,'preview',function(){
+        if(gmPreviewCard!==card||!document.body.contains(card))return;
+        card.classList.remove('preview-loading');card.classList.add('previewing');
+      },function(){
+        if(gmPreviewCard===card){card.classList.remove('preview-loading','previewing');card.classList.add('preview-failed');slot.replaceChildren();}
+      });
+    },520);
   }
   function stopPreview(card){
     if(gmPreviewTimer){clearTimeout(gmPreviewTimer);gmPreviewTimer=null;}
     stopDirectPreview(card);
     if(card&&card===gmPreviewCard&&gmVideoMode==='preview')destroyGMVideoPlayer();
-    if(card){card.classList.remove('previewing');var slot=card.querySelector('.gm-card-preview-slot');if(slot)slot.replaceChildren();}
+    if(card){card.classList.remove('preview-loading','previewing','preview-failed');var slot=card.querySelector('.gm-card-preview-slot');if(slot)slot.replaceChildren();}
     if(card===gmPreviewCard)gmPreviewCard=null;
   }
   document.addEventListener('pointerover',function(e){
     if(e.pointerType==='touch'||window.matchMedia('(hover: none)').matches)return;
-    var card=e.target.closest('[data-preview],[data-gm-preview]');if(!card)return;
-    if(card.contains(e.relatedTarget))return;
+    var card=e.target.closest('[data-preview],[data-gm-preview]');if(!card||card.contains(e.relatedTarget))return;
     if(startDirectPreview(card))return;startGMPreview(card);
   });
   document.addEventListener('pointerout',function(e){var card=e.target.closest('[data-preview],[data-gm-preview]');if(card&&!card.contains(e.relatedTarget))stopPreview(card);});
