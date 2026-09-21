@@ -1107,9 +1107,181 @@ def stats():
     return jsonify({'success': True, 'total': len(_cache["stream"])})
 
 
+
+
+@app.route('/manifest.webmanifest')
+def manifest_webmanifest():
+    data = {
+        "name": "Obito Games",
+        "short_name": "Obito Games",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#000000",
+        "theme_color": "#070203",
+        "orientation": "any",
+        "icons": [
+            {"src": "/static/logo.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "/static/logo.png", "sizes": "512x512", "type": "image/png"}
+        ]
+    }
+    return Response(json.dumps(data), mimetype='application/manifest+json')
+
 @app.route('/api/health')
 def health():
     return jsonify({'status': 'ok'})
+
+
+@app.route('/gm-video/<game_id>')
+def gm_video_bridge(game_id):
+    # Página aislada para el walkthrough de GameMonetize.
+    # Se sirve desde el mismo dominio para que video.js vea un hostname real;
+    # el frontend la carga dentro de un iframe sandbox sin navegación superior.
+    gid = re.sub(r"[^A-Za-z0-9]", "", str(game_id or ""))
+    if not re.fullmatch(r"[A-Za-z0-9]{20,80}", gid):
+        abort(404)
+
+    mode = "preview" if request.args.get("mode") == "preview" else "detail"
+    ads = request.args.get("ads", "0") in {"1", "true", "yes"}
+    token = re.sub(r"[^A-Za-z0-9_-]", "", request.args.get("token", ""))[:96]
+    title = str(request.args.get("title") or "Juego").strip()[:140]
+    domain = (request.host.split(":", 1)[0] or "").strip().lower()
+
+    video_options = {
+        "gameid": gid,
+        "width": "100%",
+        "height": "100%",
+        "color": "#ff2424",
+        "getAds": "true" if ads else "false",
+    }
+    direct_url = "https://gamemonetize.video/index.php?" + urlencode({
+        "domain": domain,
+        "gameid": gid,
+        "game": title,
+        "getads": "true" if ads else "false",
+        "color": "#ff2424",
+    })
+
+    opts_json = json.dumps(video_options, separators=(",", ":"))
+    token_json = json.dumps(token)
+    mode_json = json.dumps(mode)
+    direct_json = json.dumps(direct_url)
+
+    page = f'''<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+html,body{{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;color:#fff;font-family:Arial,sans-serif}}
+#gm-root{{position:absolute;inset:0;overflow:hidden;background:transparent}}
+#gamemonetize-video{{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:transparent}}
+#gamemonetize-video>*,#gamemonetize-video iframe,#gamemonetize-video video,#gamemonetize-video object,#gamemonetize-video embed{{display:block!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;border:0!important;margin:0!important;padding:0!important}}
+body.preview #gamemonetize-video,body.preview #gamemonetize-video *{{pointer-events:none!important;user-select:none!important}}
+#status{{position:absolute;inset:0;z-index:1;display:grid;place-items:center;pointer-events:none;background:radial-gradient(circle at 50% 45%,rgba(255,35,45,.10),transparent 34%)}}
+#status.hide{{opacity:0;visibility:hidden;transition:opacity .25s ease}}
+.spinner{{width:32px;height:32px;border-radius:50%;border:3px solid rgba(255,255,255,.12);border-top-color:#ff2938;animation:spin .9s linear infinite}}
+@keyframes spin{{to{{transform:rotate(360deg)}}}}
+</style>
+</head>
+<body>
+<div id="gm-root"><div id="gamemonetize-video"></div><div id="status"><span class="spinner"></span></div></div>
+<script>
+(function(){{
+  'use strict';
+  var TOKEN={token_json}, MODE={mode_json}, DIRECT={direct_json};
+  var host=document.getElementById('gamemonetize-video');
+  var status=document.getElementById('status');
+  var sentReady=false, directMounted=false, lastPlayer=null;
+  if(MODE==='preview')document.body.classList.add('preview');
+
+  function send(type,extra){{
+    try{{ parent.postMessage(Object.assign({{type:type,token:TOKEN}},extra||{{}}),'*'); }}catch(e){{}}
+  }}
+  function markReady(reason){{
+    if(sentReady)return;sentReady=true;
+    if(status)status.classList.add('hide');
+    send('OBITO_GM_READY',{{reason:reason||'player'}});
+  }}
+  function mountDirect(reason,src){{
+    if(directMounted)return;
+    directMounted=true;
+    var target=src||DIRECT;
+    try{{
+      var u=new URL(target,location.href);
+      if(u.hostname!=='gamemonetize.video')target=DIRECT;
+    }}catch(e){{target=DIRECT;}}
+    host.replaceChildren();
+    var fr=document.createElement('iframe');
+    fr.src=target;
+    fr.title=MODE==='preview'?'Gameplay preview':'Guía del juego';
+    fr.setAttribute('allow','autoplay; fullscreen; picture-in-picture');
+    fr.setAttribute('allowfullscreen','true');
+    fr.setAttribute('scrolling','no');
+    fr.setAttribute('frameborder','0');
+    fr.referrerPolicy='strict-origin-when-cross-origin';
+    fr.onload=function(){{setTimeout(function(){{markReady(reason||'direct');}},MODE==='preview'?1300:650);}};
+    fr.onerror=function(){{send('OBITO_GM_ERROR',{{reason:'direct_iframe_error'}});}};
+    host.appendChild(fr);lastPlayer=fr;
+  }}
+  function decodeMarkupText(){{
+    var text=(host.textContent||'').trim();
+    if(!text || text.indexOf('<iframe')<0)return false;
+    try{{
+      var doc=new DOMParser().parseFromString(text,'text/html');
+      var fr=doc.querySelector('iframe[src]');
+      if(fr){{mountDirect('decoded_markup',fr.getAttribute('src'));return true;}}
+    }}catch(e){{}}
+    var m=text.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+    if(m){{mountDirect('decoded_markup_regex',m[1]);return true;}}
+    return false;
+  }}
+  function inspect(){{
+    if(sentReady)return;
+    if(decodeMarkupText())return;
+    var media=host.querySelector('video');
+    if(media){{
+      lastPlayer=media;
+      if(MODE==='preview'){{
+        try{{media.muted=true;media.defaultMuted=true;media.autoplay=true;media.playsInline=true;var p=media.play();if(p&&p.catch)p.catch(function(){{}});}}catch(e){{}}
+      }}
+      if(media.readyState>=2)markReady('video');
+      else{{media.addEventListener('loadeddata',function(){{markReady('video_loaded');}},{{once:true}});media.addEventListener('canplay',function(){{markReady('video_canplay');}},{{once:true}});}}
+      return;
+    }}
+    var fr=host.querySelector('iframe');
+    if(fr){{
+      if(lastPlayer!==fr){{
+        lastPlayer=fr;
+        fr.addEventListener('load',function(){{setTimeout(function(){{markReady('api_iframe');}},MODE==='preview'?1100:500);}},{{once:true}});
+      }}
+      setTimeout(function(){{if(!sentReady&&host.contains(fr))markReady('api_iframe_seen');}},MODE==='preview'?1800:900);
+    }}
+  }}
+
+  try{{new MutationObserver(function(){{setTimeout(inspect,60);}}).observe(host,{{childList:true,subtree:true,characterData:true}});}}catch(e){{}}
+  window.addEventListener('error',function(e){{if(!sentReady)send('OBITO_GM_SCRIPT_WARNING',{{message:String(e.message||'')}});}});
+  window.VIDEO_OPTIONS={opts_json};
+  var s=document.createElement('script');
+  s.id='gamemonetize-video-api';
+  s.src='https://api.gamemonetize.com/video.js?v='+Date.now();
+  s.async=true;
+  s.onload=function(){{setTimeout(inspect,180);setTimeout(inspect,900);setTimeout(function(){{if(!sentReady&&!directMounted)mountDirect('api_fallback');}},4800);}};
+  s.onerror=function(){{mountDirect('script_error_fallback');}};
+  document.head.appendChild(s);
+  setTimeout(inspect,600);
+  setTimeout(function(){{if(!sentReady&&!directMounted)mountDirect('timeout_fallback');}},6000);
+  setTimeout(function(){{if(!sentReady)send('OBITO_GM_TIMEOUT',{{reason:'final_timeout'}});}},14000);
+}})();
+</script>
+</body>
+</html>'''
+    resp = Response(page, mimetype="text/html")
+    resp.headers["Cache-Control"] = "no-store, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return resp
 
 
 @app.route('/px/<path:target>')
