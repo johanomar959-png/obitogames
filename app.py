@@ -833,18 +833,47 @@ def game_page(game_slug):
 
 @app.route('/sitemap.xml')
 def sitemap():
-    if not cargar_cache():
-        abort(500)
-    base = site_base_url()
-    urls = [base + "/"]
-    urls.extend(base + f"/categoria/{c['slug']}" for c in CATEGORIES_DEF if _cache["counts"].get(c["slug"]))
-    urls.extend(base + g["seo_url"] for g in _cache["stream"])
-    body = ['<?xml version="1.0" encoding="UTF-8"?>',
-            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    for u in urls:
-        body.append(f"<url><loc>{xml_escape(u)}</loc></url>")
-    body.append("</urlset>")
-    return Response("\n".join(body), mimetype="application/xml")
+    try:
+        base = site_base_url()
+        
+        # URLs básicas (siempre disponibles)
+        urls = [base + "/"]
+        
+        # Categorías
+        for c in CATEGORIES_DEF:
+            urls.append(base + f"/categoria/{c['slug']}")
+        
+        # Juegos desde la base de datos directamente
+        try:
+            import sqlite3
+            conn = sqlite3.connect(DB_FILE)
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute("SELECT id, titulo FROM juegos LIMIT 5000").fetchall()
+            conn.close()
+            for r in rows:
+                slug = re.sub(r'[^a-z0-9]+', '-', (r["titulo"] or "").lower()).strip('-')
+                urls.append(f"{base}/juego/{slug}-{r['id']}")
+        except Exception:
+            pass
+        
+        # Construir XML
+        body = ['<?xml version="1.0" encoding="UTF-8"?>',
+                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+        for u in urls:
+            u_escaped = u.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            body.append(f"<url><loc>{u_escaped}</loc></url>")
+        body.append("</urlset>")
+        
+        return Response("\n".join(body), mimetype="application/xml", 
+                       headers={"Cache-Control": "public, max-age=3600"})
+    except Exception as e:
+        # Fallback mínimo si todo falla
+        base = site_base_url()
+        xml = f'''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>{base}/</loc></url>
+</urlset>'''
+        return Response(xml, mimetype="application/xml")
 
 
 @app.route('/ads.txt')
