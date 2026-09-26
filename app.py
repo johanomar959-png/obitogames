@@ -855,6 +855,9 @@ def ads_txt():
             return f.read(), 200, {"Content-Type": "text/plain"}
     abort(404)
 
+@app.route('/googlea6b3d7e05c3d84a1.html')
+def google_verification():
+    return app.send_static_file('googlea6b3d7e05c3d84a1.html')
 
 @app.route('/robots.txt')
 def robots():
